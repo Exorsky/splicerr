@@ -6,6 +6,16 @@ It's basically a full rewrite of [ascpixi's](https://github.com/ascpixi) [Splice
 
 Please show your appreciation by starring ⭐ the [original project](https://github.com/ascpixi/splicedd), as it made this all possible.
 
+> [!NOTE]
+> **This is a temporary fork of [Robert-K/splicerr](https://github.com/Robert-K/splicerr).**
+> Upstream stopped loading samples after Splice's GraphQL API started requiring
+> Apollo preflight headers. This fork applies that fix (see [issue #30](https://github.com/Robert-K/splicerr/issues/30))
+> so the app works again. Once the fix is merged upstream, please use the
+> original repo instead.
+>
+> As a bonus, this fork also adds a **tempo-preserving Transpose** feature
+> (transpose samples by key or by semitones — see [Features](#features)).
+
 <p align="center">
   <br>
   <a href="https://github.com/robert-k/splicerr/releases/"><b>Click here to download the latest release!</b></a>
@@ -18,6 +28,7 @@ https://github.com/user-attachments/assets/34f1ba90-c881-4a04-a5df-c147bdb51c2c
 ## Features
 
 - Drag-and-drop samples
+- **Transpose by key or pitch (tempo-preserving)** ✨ _new in this fork_
 - Search suggestions
 - Tag filtering
 - Infinite scrolling
