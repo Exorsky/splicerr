@@ -61,9 +61,33 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          releaseName: 'App v__VERSION__'
-          releaseBody: 'See the assets to download this version and install.'
+          tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          releaseName: 'Splicerr v__VERSION__ — API fix + Transpose'
+          releaseBody: |
+            ## Splicerr v1.0.8 — community fork
+
+            Temporary fork of [Robert-K/splicerr](https://github.com/Robert-K/splicerr)
+            that restores functionality and adds a bonus feature.
+
+            ### 🔧 Fix
+            - **Samples load again.** Splice's GraphQL API began requiring Apollo
+              preflight headers (`apollo-require-preflight`, `x-apollo-operation-name`);
+              without them the app failed with "something went wrong". This build adds them.
+              (upstream issue [#30](https://github.com/Robert-K/splicerr/issues/30))
+
+            ### ✨ New
+            - **Transpose** — shift samples by key or by semitones, tempo-preserving,
+              applied to both preview playback and exported WAV.
+
+            ### 📦 Downloads
+            - **Windows** — `.exe` (installer) or `.msi`
+            - **macOS** — `.dmg` (Apple Silicon & Intel)
+            - **Linux** — `.AppImage`, `.deb`, `.rpm`
+
+            > Once the headers fix is merged upstream, please switch back to the original repo.
+            > All credit to the original authors — please ⭐ the original
+            > [splicedd](https://github.com/ascpixi/splicedd) and
+            > [splicerr](https://github.com/Robert-K/splicerr).
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
