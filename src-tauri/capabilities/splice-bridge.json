@@ -1,0 +1,10 @@
+{
+    "$schema": "../gen/schemas/desktop-schema.json",
+    "identifier": "splice-bridge",
+    "description": "Lets the hidden Splice bridge webview (remote Splice origin) relay GraphQL responses back to the backend via the event system and the splice_response / splice_bridge_ready commands.",
+    "windows": ["splice-bridge"],
+    "remote": {
+        "urls": ["https://surfaces-graphql.splice.com"]
+    },
+    "permissions": ["core:event:default"]
+}

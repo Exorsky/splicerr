@@ -84,9 +84,11 @@ export async function querySplice(
     const startTime = Date.now()
     console.log("💌 Requesting", body)
     try {
-        // Routed through a Rust command instead of the http plugin: on Windows
-        // the plugin injects `Origin: http://tauri.localhost`, which Splice's
-        // Cloudflare protection blocks with a 403.
+        // Routed through the `splice_graphql` Rust command, which relays the
+        // request through a hidden webview parked on the Splice origin. Splice's
+        // Cloudflare now serves a managed challenge to every native HTTP client
+        // (reqwest/curl/fetch all get a 403), so the request has to originate
+        // from a real browser engine. See src-tauri/src/lib.rs.
         const text = await invoke<string>("splice_graphql", {
             body: JSON.stringify(body),
         })

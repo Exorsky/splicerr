@@ -64,20 +64,23 @@ jobs:
           tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'Splicerr v__VERSION__ — API fix + Transpose'
           releaseBody: |
-            ## Splicerr v1.0.9 — community fork
+            ## Splicerr v1.0.10 — community fork
 
             Temporary fork of [Robert-K/splicerr](https://github.com/Robert-K/splicerr)
             that restores functionality and adds a bonus feature.
 
             ### 🔧 Fixes
-            - **Windows: "Something went wrong" fixed.** On Windows the app's
-              requests were being flagged as a bot by Splice's Cloudflare
-              protection (403). The GraphQL request now goes through a native
-              client that Cloudflare accepts, so samples load on Windows again.
-            - **Samples load again (all platforms).** Splice's GraphQL API began
-              requiring Apollo preflight headers (`apollo-require-preflight`,
-              `x-apollo-operation-name`); without them the app failed with
-              "something went wrong". This build adds them.
+            - **403 / "Something went wrong" fixed for good.** Splice's Cloudflare
+              protection escalated to a managed challenge (`cf-mitigated: challenge`,
+              "Just a moment…") that blocks *every* native HTTP client — the previous
+              reqwest-based workaround, curl, and plain `fetch` all get a 403 now,
+              regardless of headers. The GraphQL request is therefore routed through
+              a hidden webview parked on the Splice origin, so it originates from a
+              real browser engine (WebView2 on Windows, WebKit on macOS/Linux) and is
+              no longer challenged. This is not another fingerprint trick — it stops
+              the cat-and-mouse because the request genuinely is a browser.
+              Apollo preflight headers (`apollo-require-preflight`,
+              `x-apollo-operation-name`) are still sent.
               (upstream issue [#30](https://github.com/Robert-K/splicerr/issues/30))
 
             ### ✨ New

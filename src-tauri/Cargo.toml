@@ -21,8 +21,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-reqwest = { version = "0.12", features = ["gzip", "brotli"] }
+tokio = { version = "1", features = ["sync", "time"] }
 tauri-plugin-http = "2"
 tauri-plugin-drag = "2.0.0"
 tauri-plugin-fs = "2"
