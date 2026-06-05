@@ -95,11 +95,12 @@ async function resizeImageToCorner(
 
 export async function handleSampleDrag(event: DragEvent, sampleAsset: SampleAsset) {
     event.preventDefault()
-    console.log("🫳 Dragging", sampleAsset.name)
+    console.log("🫳 [1] dragstart FIRED for", sampleAsset.name)
 
     try {
         loading.setCursor(true)
         const path = await saveSample(sampleAsset)
+        console.log("🫳 [2] saveSample OK ->", path)
 
         // Save pack image to samples directory and use it as drag icon
         const pack = sampleAsset.parents.items[0] as PackAsset
@@ -113,8 +114,12 @@ export async function handleSampleDrag(event: DragEvent, sampleAsset: SampleAsse
         } else {
             iconPath = await createInvisibleIcon()
         }
+        console.log("🫳 [3] icon ready ->", iconPath, "| calling startDrag")
 
-        startDrag({ item: [path], icon: iconPath })
+        await startDrag({ item: [path], icon: iconPath }, (result) =>
+            console.log("🫳 [5] drag result", result)
+        )
+        console.log("🫳 [4] startDrag invoke returned")
     } catch (e) {
         console.error("⚠️ Error dragging", e)
     } finally {
