@@ -170,12 +170,6 @@ pub fn run() {
             .skip_taskbar(true)
             .initialization_script(BRIDGE_INIT_JS)
             .build()?;
-
-            // DIAGNOSTIC (mac-test branch): auto-open DevTools on the main
-            // window so console logs are visible in the unsigned test build.
-            if let Some(main) = app.get_webview_window("main") {
-                main.open_devtools();
-            }
             Ok(())
         })
         .run(tauri::generate_context!())
