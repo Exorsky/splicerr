@@ -1,8 +1,8 @@
 name: '🧪 Build macOS (test)'
 
-# Builds an Apple Silicon (arm64) .dmg and uploads it as a downloadable
-# artifact — no GitHub release is created. Use this to test changes on a Mac
-# without cutting a release. Trigger by pushing to `mac-test` or via the
+# Builds an Intel (x86_64) .dmg and uploads it as a downloadable artifact —
+# no GitHub release is created. Use this to test changes on a Mac without
+# cutting a release. Trigger by pushing to `mac-test` or via the
 # "Run workflow" button (workflow_dispatch).
 
 on:
@@ -13,7 +13,7 @@ on:
 
 jobs:
   build-macos:
-    runs-on: macos-latest # Apple Silicon (arm64)
+    runs-on: macos-latest # arm runner, cross-builds the x86_64 target
     steps:
       - uses: actions/checkout@v4
 
@@ -25,7 +25,7 @@ jobs:
       - name: 🦀 Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin
+          targets: x86_64-apple-darwin
 
       - name: ⚡ Setup pnpm
         uses: pnpm/action-setup@v3.0.0
@@ -35,12 +35,12 @@ jobs:
       - name: 📦 Install frontend dependencies
         run: pnpm install
 
-      - name: 🛠️ Build arm64 .dmg
-        run: pnpm tauri build --target aarch64-apple-darwin
+      - name: 🛠️ Build x86_64 .dmg
+        run: pnpm tauri build --target x86_64-apple-darwin
 
       - name: ⬆️ Upload .dmg artifact
         uses: actions/upload-artifact@v4
         with:
-          name: splicerr-macos-arm64-dmg
-          path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          name: splicerr-macos-x64-dmg
+          path: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
           if-no-files-found: error
