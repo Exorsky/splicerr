@@ -14,7 +14,7 @@
     import { cn, formatKey } from "$lib/utils"
     import { loading } from "$lib/shared/loading.svelte"
     import { assetIcons } from "$lib/shared/icons.svelte"
-    import {handleSampleDrag} from "$lib/shared/drag.svelte"
+    import {handleSampleDrag, prefetchSampleDrag} from "$lib/shared/drag.svelte"
 
     let {
         class: className,
@@ -44,6 +44,20 @@
         var seconds = Math.floor((millis % 60000) / 1000)
         return minutes + ":" + (seconds < 10 ? "0" : "") + seconds
     }
+
+    // Prepare the sample for dragging ahead of the gesture (debounced on hover,
+    // and immediately on press) so the native drag can start synchronously —
+    // doing the descramble/write inside dragstart crashes on macOS.
+    let hoverTimer: ReturnType<typeof setTimeout> | null = null
+    const startHoverPrefetch = () => {
+        hoverTimer = setTimeout(() => prefetchSampleDrag(sampleAsset), 150)
+    }
+    const cancelHoverPrefetch = () => {
+        if (hoverTimer) {
+            clearTimeout(hoverTimer)
+            hoverTimer = null
+        }
+    }
 </script>
 
 <button
@@ -55,7 +69,12 @@
     id={`sample-list-entry-${sampleAsset.uuid}`}
     draggable="true"
     tabindex="-1"
-    onmousedown={() => globalAudio.selectSampleAsset(sampleAsset, false)}
+    onpointerenter={startHoverPrefetch}
+    onpointerleave={cancelHoverPrefetch}
+    onmousedown={() => {
+        globalAudio.selectSampleAsset(sampleAsset, false)
+        prefetchSampleDrag(sampleAsset)
+    }}
     ondragstart={(event) => handleSampleDrag(event, sampleAsset)}
 >
     <PackPreview {pack} />
