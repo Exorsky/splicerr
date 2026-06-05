@@ -1,0 +1,46 @@
+name: '🧪 Build macOS (test)'
+
+# Builds an Apple Silicon (arm64) .dmg and uploads it as a downloadable
+# artifact — no GitHub release is created. Use this to test changes on a Mac
+# without cutting a release. Trigger by pushing to `mac-test` or via the
+# "Run workflow" button (workflow_dispatch).
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - mac-test
+
+jobs:
+  build-macos:
+    runs-on: macos-latest # Apple Silicon (arm64)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 🟩 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: 🦀 Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: ⚡ Setup pnpm
+        uses: pnpm/action-setup@v3.0.0
+        with:
+          version: latest
+
+      - name: 📦 Install frontend dependencies
+        run: pnpm install
+
+      - name: 🛠️ Build arm64 .dmg
+        run: pnpm tauri build --target aarch64-apple-darwin
+
+      - name: ⬆️ Upload .dmg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: splicerr-macos-arm64-dmg
+          path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error
