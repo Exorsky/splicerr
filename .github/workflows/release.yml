@@ -64,23 +64,25 @@ jobs:
           tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'Splicerr v__VERSION__ — API fix + Transpose'
           releaseBody: |
-            ## Splicerr v1.0.10 — community fork
+            ## Splicerr v1.0.11 — community fork
 
             Temporary fork of [Robert-K/splicerr](https://github.com/Robert-K/splicerr)
             that restores functionality and adds a bonus feature.
 
             ### 🔧 Fixes
+            - **Drag-and-drop crash fixed on macOS Sequoia.** Dragging samples crashed
+              the app on macOS 15 Sequoia (EXC_BAD_ACCESS in NSViewAlignRect), including
+              on Intel Macs and Apple Silicon running x86_64 builds. Root cause: the
+              native drag library (v2.0.0) read a nil `NSApp.currentEvent` when the drag
+              was initiated asynchronously. Fixed by upgrading to `tauri-plugin-drag 2.1`
+              which guards against nil and ships an explicit macOS Intel crash fix.
+              The sample WAV is now also prepared ahead of the drag gesture (on hover)
+              so the drag session starts synchronously.
             - **403 / "Something went wrong" fixed for good.** Splice's Cloudflare
-              protection escalated to a managed challenge (`cf-mitigated: challenge`,
-              "Just a moment…") that blocks *every* native HTTP client — the previous
-              reqwest-based workaround, curl, and plain `fetch` all get a 403 now,
-              regardless of headers. The GraphQL request is therefore routed through
-              a hidden webview parked on the Splice origin, so it originates from a
-              real browser engine (WebView2 on Windows, WebKit on macOS/Linux) and is
-              no longer challenged. This is not another fingerprint trick — it stops
-              the cat-and-mouse because the request genuinely is a browser.
-              Apollo preflight headers (`apollo-require-preflight`,
-              `x-apollo-operation-name`) are still sent.
+              protection escalated to a managed challenge that blocks every native HTTP
+              client. Requests are now routed through a hidden webview (WebView2 on
+              Windows, WebKit on macOS/Linux) so they originate from a real browser
+              engine and are never challenged.
               (upstream issue [#30](https://github.com/Robert-K/splicerr/issues/30))
 
             ### ✨ New
