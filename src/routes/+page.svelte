@@ -33,7 +33,7 @@
     import SettingsDialog from "$lib/components/settings-dialog.svelte"
     import KeySelect from "$lib/components/key-select.svelte"
     import CollectionsSidebar from "$lib/components/collections-sidebar.svelte"
-    import { viewStore } from "$lib/shared/view.svelte"
+    import { viewStore, toggleCollectionTag } from "$lib/shared/view.svelte"
     import {
         collectionSamples,
         findCollection,
@@ -47,12 +47,42 @@
     )
 
     // The samples shown in the main list: search results in browse mode,
-    // the collection's stored samples in collection mode.
-    const shownSamples = $derived(
-        viewStore.mode === "collection" && viewStore.collectionUuid
-            ? collectionSamples(viewStore.collectionUuid)
-            : dataStore.sampleAssets
-    )
+    // the collection's stored samples (optionally tag-filtered) in collection mode.
+    const shownSamples = $derived.by(() => {
+        if (viewStore.mode !== "collection" || !viewStore.collectionUuid) {
+            return dataStore.sampleAssets
+        }
+        const samples = collectionSamples(viewStore.collectionUuid)
+        if (viewStore.tagFilter.length == 0) return samples
+        return samples.filter((sample) =>
+            viewStore.tagFilter.every((tagUuid) =>
+                sample.tags.some((tag) => tag.uuid == tagUuid)
+            )
+        )
+    })
+
+    // Aggregated tag counts across the open collection's samples, most common first.
+    const collectionTagSummary = $derived.by(() => {
+        if (viewStore.mode !== "collection" || !viewStore.collectionUuid) {
+            return []
+        }
+        const counts = new Map<
+            string,
+            { uuid: string; label: string; count: number }
+        >()
+        for (const sample of collectionSamples(viewStore.collectionUuid)) {
+            for (const tag of sample.tags) {
+                const entry = counts.get(tag.uuid) ?? {
+                    uuid: tag.uuid,
+                    label: tag.label,
+                    count: 0,
+                }
+                entry.count++
+                counts.set(tag.uuid, entry)
+            }
+        }
+        return [...counts.values()].sort((a, b) => b.count - a.count)
+    })
 
     // TODO: Taxonomy comboboxes (maybe just pass all tags to each)
     // const instrumentTags = $derived(() =>
@@ -297,8 +327,23 @@
             />
         </div>
         {:else}
-        <div class="text-muted-foreground text-xs">
-            {shownSamples.length.toLocaleString()} sounds
+        <div class="flex flex-col gap-2">
+            {#if collectionTagSummary.length > 0}
+                <div class="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                    {#each collectionTagSummary as tag (tag.uuid)}
+                        {@const active = viewStore.tagFilter.includes(tag.uuid)}
+                        <TagBadge
+                            label={tag.label}
+                            count={tag.count}
+                            {active}
+                            onclick={() => toggleCollectionTag(tag.uuid)}
+                        />
+                    {/each}
+                </div>
+            {/if}
+            <div class="text-muted-foreground text-xs">
+                {shownSamples.length.toLocaleString()} sounds
+            </div>
         </div>
         {/if}
 
@@ -413,11 +458,17 @@
                     class="flex flex-col gap-2 justify-center items-center size-full text-muted-foreground"
                 >
                     {#if viewStore.mode === "collection"}
-                        <Library size="48" />
-                        <p class="font-bold text-xl">Empty collection</p>
-                        <p class="text-sm">
-                            Add sounds from Browse using the + on each row.
-                        </p>
+                        {#if viewStore.tagFilter.length > 0}
+                            <Search size="48" />
+                            <p class="font-bold text-xl">No matches</p>
+                            <p class="text-sm">No sounds match the selected tags.</p>
+                        {:else}
+                            <Library size="48" />
+                            <p class="font-bold text-xl">Empty collection</p>
+                            <p class="text-sm">
+                                Add sounds from Browse using the menu on each row.
+                            </p>
+                        {/if}
                     {:else if loading.fetchError}
                         <Ghost size="48" />
                         <p class="font-bold text-xl">Something went wrong :/</p>
