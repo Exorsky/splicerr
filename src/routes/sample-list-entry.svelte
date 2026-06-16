@@ -8,6 +8,7 @@
     import Pause from "lucide-svelte/icons/pause"
     import Play from "lucide-svelte/icons/play"
     import Button from "$lib/components/ui/button/button.svelte"
+    import { buttonVariants } from "$lib/components/ui/button/index.js"
     import * as Tooltip from "$lib/components/ui/tooltip/index.js"
     import LoaderCircle from "lucide-svelte/icons/loader-circle"
     import { dataStore, fetchAssets } from "$lib/shared/store.svelte"
@@ -15,18 +16,51 @@
     import { loading } from "$lib/shared/loading.svelte"
     import { assetIcons } from "$lib/shared/icons.svelte"
     import {handleSampleDrag, prefetchSampleDrag} from "$lib/shared/drag.svelte"
+    import * as Popover from "$lib/components/ui/popover"
+    import Plus from "lucide-svelte/icons/plus"
+    import Check from "lucide-svelte/icons/check"
+    import X from "lucide-svelte/icons/x"
+    import {
+        collectionsStore,
+        addSample,
+        removeSample,
+        createCollection,
+        isSampleInCollection,
+    } from "$lib/shared/collections.svelte"
 
     let {
         class: className,
         selected,
         playing,
         sampleAsset,
+        collectionUuid = null,
+        onremove,
     }: {
         class?: string
         selected: boolean
         playing: boolean
         sampleAsset: SampleAsset
+        // When set, this row is rendered inside a collection view.
+        collectionUuid?: string | null
+        onremove?: () => void
     } = $props()
+
+    let newName = $state("")
+
+    const toggleInCollection = (colUuid: string) => {
+        if (isSampleInCollection(colUuid, sampleAsset.uuid)) {
+            removeSample(colUuid, sampleAsset.uuid)
+        } else {
+            addSample(colUuid, sampleAsset)
+        }
+    }
+
+    const createAndAdd = () => {
+        if (!newName.trim()) return
+        const collection = createCollection(newName)
+        addSample(collection.uuid, sampleAsset)
+        newName = ""
+    }
 
     let playButtonRef = $state<HTMLButtonElement>(null!)
 
@@ -164,4 +198,84 @@
     <div class="text-muted-foreground flex-shrink-0 w-14 flex-grow">
         {sampleAsset.bpm ?? "--"}
     </div>
+    <!-- svelte-ignore node_invalid_placement_ssr -->
+    <span
+        class="flex-shrink-0 flex items-center"
+        onmousedown={(e) => e.stopPropagation()}
+        ondragstart={(e) => e.preventDefault()}
+        role="presentation"
+    >
+        {#if collectionUuid}
+            <Button
+                variant="ghost"
+                size="icon"
+                class="size-8 text-muted-foreground hover:text-destructive"
+                title="Remove from collection"
+                onclick={() => onremove?.()}
+            >
+                <X size="16" />
+            </Button>
+        {:else}
+            <Popover.Root>
+                <Popover.Trigger
+                    class={cn(
+                        buttonVariants({ variant: "ghost", size: "icon" }),
+                        "size-8 text-muted-foreground"
+                    )}
+                    title="Add to collection"
+                >
+                    <Plus size="16" />
+                </Popover.Trigger>
+                <Popover.Content class="w-56 p-1" align="end" side="left">
+                    <div class="flex flex-col">
+                        <p
+                            class="px-2 py-1.5 text-xs font-medium text-muted-foreground"
+                        >
+                            Add to collection
+                        </p>
+                        {#each collectionsStore.collections as collection (collection.uuid)}
+                            {@const inIt = isSampleInCollection(
+                                collection.uuid,
+                                sampleAsset.uuid
+                            )}
+                            <button
+                                class="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted text-left"
+                                onclick={() =>
+                                    toggleInCollection(collection.uuid)}
+                            >
+                                <span
+                                    class="flex-shrink-0 size-4 flex items-center justify-center"
+                                >
+                                    {#if inIt}
+                                        <Check size="14" />
+                                    {/if}
+                                </span>
+                                <span class="truncate flex-grow">
+                                    {collection.name}
+                                </span>
+                            </button>
+                        {/each}
+                        <div class="border-t border-border mt-1 pt-1 flex gap-1">
+                            <input
+                                class="flex h-8 w-full rounded-md bg-transparent px-2 text-sm focus:outline-none placeholder:text-muted-foreground"
+                                placeholder="New collection"
+                                bind:value={newName}
+                                onkeydown={(e) => {
+                                    if (e.key === "Enter") createAndAdd()
+                                }}
+                            />
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                class="size-8 flex-shrink-0"
+                                onclick={createAndAdd}
+                            >
+                                <Plus size="16" />
+                            </Button>
+                        </div>
+                    </div>
+                </Popover.Content>
+            </Popover.Root>
+        {/if}
+    </span>
 </button>

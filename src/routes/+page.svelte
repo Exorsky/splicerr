@@ -7,6 +7,7 @@
     import Search from "lucide-svelte/icons/search"
     import Smile from "lucide-svelte/icons/smile"
     import Ghost from "lucide-svelte/icons/ghost"
+    import Library from "lucide-svelte/icons/library"
     import Shuffle from "lucide-svelte/icons/shuffle"
     import Button from "$lib/components/ui/button/button.svelte"
     import ProgressLoading from "$lib/components/progress-loading.svelte"
@@ -31,6 +32,27 @@
     } from "$lib/shared/store.svelte"
     import SettingsDialog from "$lib/components/settings-dialog.svelte"
     import KeySelect from "$lib/components/key-select.svelte"
+    import CollectionsSidebar from "$lib/components/collections-sidebar.svelte"
+    import { viewStore } from "$lib/shared/view.svelte"
+    import {
+        collectionSamples,
+        findCollection,
+        removeSample,
+    } from "$lib/shared/collections.svelte"
+
+    const activeCollection = $derived(
+        viewStore.mode === "collection" && viewStore.collectionUuid
+            ? findCollection(viewStore.collectionUuid)
+            : null
+    )
+
+    // The samples shown in the main list: search results in browse mode,
+    // the collection's stored samples in collection mode.
+    const shownSamples = $derived(
+        viewStore.mode === "collection" && viewStore.collectionUuid
+            ? collectionSamples(viewStore.collectionUuid)
+            : dataStore.sampleAssets
+    )
 
     // TODO: Taxonomy comboboxes (maybe just pass all tags to each)
     // const instrumentTags = $derived(() =>
@@ -69,12 +91,13 @@
     let searchInputRef = $state<HTMLInputElement>(null!)
 
     const selectedSampleIndex = $derived(
-        dataStore.sampleAssets.findIndex(
+        shownSamples.findIndex(
             (sampleAsset) => sampleAsset.uuid == globalAudio.currentAsset?.uuid
         )
     )
 
     const updateSort = (newSort: AssetSortType) => {
+        if (viewStore.mode !== "browse") return
         if (queryStore.sort == newSort) {
             if (queryStore.order == "DESC") {
                 queryStore.order = "ASC"
@@ -89,11 +112,11 @@
     }
 
     const gotoPrev = () => {
-        const currentIndex = dataStore.sampleAssets.findIndex(
+        const currentIndex = shownSamples.findIndex(
             (asset) => asset.uuid === globalAudio.currentAsset?.uuid
         )
-        if (currentIndex > -1) {
-            const sampleAsset = dataStore.sampleAssets[currentIndex - 1]
+        if (currentIndex > 0) {
+            const sampleAsset = shownSamples[currentIndex - 1]
             globalAudio.playSampleAsset(sampleAsset)
             const entryEl = document.getElementById(
                 `sample-list-entry-${sampleAsset.uuid}`
@@ -104,14 +127,11 @@
     }
 
     const gotoNext = () => {
-        const currentIndex = dataStore.sampleAssets.findIndex(
+        const currentIndex = shownSamples.findIndex(
             (asset) => asset.uuid === globalAudio.currentAsset?.uuid
         )
-        if (
-            currentIndex !== -1 &&
-            currentIndex + 1 < dataStore.sampleAssets.length
-        ) {
-            const sampleAsset = dataStore.sampleAssets[currentIndex + 1]
+        if (currentIndex !== -1 && currentIndex + 1 < shownSamples.length) {
+            const sampleAsset = shownSamples[currentIndex + 1]
             globalAudio.playSampleAsset(sampleAsset)
             const entryEl = document.getElementById(
                 `sample-list-entry-${sampleAsset.uuid}`
@@ -131,6 +151,7 @@
     onMount(() => {
         viewportRef.addEventListener("scroll", () => {
             if (
+                viewStore.mode === "browse" &&
                 !loading.assets &&
                 viewportRef.scrollTop + viewportRef.clientHeight >=
                     viewportRef.scrollHeight - viewportRef.clientHeight
@@ -147,33 +168,43 @@
     })
 </script>
 
-<main class="flex flex-col size-full">
+<div class="flex flex-col size-full">
+    <div class="flex flex-grow min-h-0">
+        <CollectionsSidebar />
+        <main class="flex flex-col flex-grow min-w-0">
     <div class="flex flex-col p-4 gap-4">
         <div class="flex gap-4 justify-between items-center">
             <SettingsDialog />
-            <SearchInput
-                bind:value={queryStore.query}
-                onsubmit={fetchAssets}
-                class="flex-grow"
-                bind:inputRef={searchInputRef}
-            />
-            <KeySelect
-                bind:key={queryStore.key}
-                bind:chord_type={queryStore.chord_type}
-                onselect={fetchAssets}
-            />
-            <BpmSelect
-                bind:bpm={queryStore.bpm}
-                bind:min_bpm={queryStore.min_bpm}
-                bind:max_bpm={queryStore.max_bpm}
-                onsubmit={fetchAssets}
-            />
-            <AssetCategorySelect
-                bind:asset_category_slug={queryStore.asset_category_slug}
-                onselect={fetchAssets}
-            />
+            {#if viewStore.mode === "browse"}
+                <SearchInput
+                    bind:value={queryStore.query}
+                    onsubmit={fetchAssets}
+                    class="flex-grow"
+                    bind:inputRef={searchInputRef}
+                />
+                <KeySelect
+                    bind:key={queryStore.key}
+                    bind:chord_type={queryStore.chord_type}
+                    onselect={fetchAssets}
+                />
+                <BpmSelect
+                    bind:bpm={queryStore.bpm}
+                    bind:min_bpm={queryStore.min_bpm}
+                    bind:max_bpm={queryStore.max_bpm}
+                    onsubmit={fetchAssets}
+                />
+                <AssetCategorySelect
+                    bind:asset_category_slug={queryStore.asset_category_slug}
+                    onselect={fetchAssets}
+                />
+            {:else}
+                <h2 class="flex-grow text-xl font-bold truncate">
+                    {activeCollection?.name ?? "Collection"}
+                </h2>
+            {/if}
         </div>
 
+        {#if viewStore.mode === "browse"}
         <div
             class="transition-[height] ease-in-out overflow-clip"
             bind:this={tagsDrawerRef}
@@ -265,6 +296,11 @@
                 order={queryStore.order}
             />
         </div>
+        {:else}
+        <div class="text-muted-foreground text-xs">
+            {shownSamples.length.toLocaleString()} sounds
+        </div>
+        {/if}
 
         <div class="flex flex-col gap-2">
             <Separator />
@@ -345,15 +381,25 @@
         }}
     >
         <div class="flex flex-col py-2 size-full">
-            {#each dataStore.sampleAssets as sampleAsset, index}
+            {#each shownSamples as sampleAsset, index (sampleAsset.uuid)}
                 {@const selected =
                     globalAudio.currentAsset?.uuid == sampleAsset.uuid}
                 <SampleListEntry
                     {sampleAsset}
                     {selected}
                     playing={selected && !globalAudio.paused}
+                    collectionUuid={viewStore.mode === "collection"
+                        ? viewStore.collectionUuid
+                        : null}
+                    onremove={() => {
+                        if (viewStore.collectionUuid)
+                            removeSample(
+                                viewStore.collectionUuid,
+                                sampleAsset.uuid
+                            )
+                    }}
                 />
-                {#if index < dataStore.sampleAssets.length - 1}
+                {#if index < shownSamples.length - 1}
                     <div
                         class={selected || index + 1 == selectedSampleIndex
                             ? "px-2"
@@ -366,7 +412,13 @@
                 <div
                     class="flex flex-col gap-2 justify-center items-center size-full text-muted-foreground"
                 >
-                    {#if loading.fetchError}
+                    {#if viewStore.mode === "collection"}
+                        <Library size="48" />
+                        <p class="font-bold text-xl">Empty collection</p>
+                        <p class="text-sm">
+                            Add sounds from Browse using the + on each row.
+                        </p>
+                    {:else if loading.fetchError}
                         <Ghost size="48" />
                         <p class="font-bold text-xl">Something went wrong :/</p>
                         <p class="text-sm">Couldn't load any samples</p>
@@ -382,7 +434,7 @@
                     {/if}
                 </div>
             {/each}
-            {#if loading.fetchError && dataStore.sampleAssets.length > 0}
+            {#if viewStore.mode === "browse" && loading.fetchError && dataStore.sampleAssets.length > 0}
                 <div
                     class="flex flex-col py-8 gap-2 justify-center items-center text-muted-foreground"
                 >
@@ -394,5 +446,7 @@
             {/if}
         </div>
     </ScrollArea>
+        </main>
+    </div>
     <AudioPlayer onprev={gotoPrev} onnext={gotoNext} />
-</main>
+</div>
