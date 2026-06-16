@@ -1,7 +1,5 @@
 <script lang="ts">
     import * as Dialog from "$lib/components/ui/dialog"
-    import Settings from "lucide-svelte/icons/settings"
-    import { buttonVariants } from "$lib/components/ui/button/index.js"
     import { cn } from "$lib/utils"
     import ExternalLink from "$lib/components/external-link.svelte"
     import Input from "$lib/components/ui/input/input.svelte"
@@ -26,12 +24,6 @@
 </script>
 
 <Dialog.Root bind:open={settingsDialog.open}>
-    <Dialog.Trigger
-        class={cn(
-            buttonVariants({ variant: "outline", size: "icon" }),
-            "text-muted-foreground flex-shrink-0"
-        )}><Settings /></Dialog.Trigger
-    >
     <Dialog.Content>
         <Dialog.Header>
             <Dialog.Title>Settings</Dialog.Title>

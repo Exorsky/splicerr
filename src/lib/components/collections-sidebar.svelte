@@ -6,9 +6,12 @@
     import { ScrollArea } from "$lib/components/ui/scroll-area"
     import * as Popover from "$lib/components/ui/popover"
     import * as Dialog from "$lib/components/ui/dialog"
+    import SettingsDialog from "$lib/components/settings-dialog.svelte"
+    import { settingsDialog } from "$lib/shared/config.svelte"
     import Plus from "lucide-svelte/icons/plus"
     import Search from "lucide-svelte/icons/search"
     import Library from "lucide-svelte/icons/library"
+    import Settings from "lucide-svelte/icons/settings"
     import Heart from "lucide-svelte/icons/heart"
     import Ellipsis from "lucide-svelte/icons/ellipsis"
     import Pencil from "lucide-svelte/icons/pencil"
@@ -213,7 +216,19 @@
             {/each}
         </div>
     </ScrollArea>
+
+    <div class="border-t border-border pt-2 -mx-1 px-1">
+        <button
+            class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left w-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            onclick={() => (settingsDialog.open = true)}
+        >
+            <Settings size="16" class="flex-shrink-0" />
+            Settings
+        </button>
+    </div>
 </aside>
+
+<SettingsDialog />
 
 <Dialog.Root
     open={editTarget !== null}

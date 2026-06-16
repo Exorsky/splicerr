@@ -30,7 +30,6 @@
         DEFAULT_SORT,
         randomSeed,
     } from "$lib/shared/store.svelte"
-    import SettingsDialog from "$lib/components/settings-dialog.svelte"
     import KeySelect from "$lib/components/key-select.svelte"
     import CollectionsSidebar from "$lib/components/collections-sidebar.svelte"
     import { viewStore, toggleCollectionTag } from "$lib/shared/view.svelte"
@@ -204,7 +203,6 @@
         <main class="flex flex-col flex-grow min-w-0">
     <div class="flex flex-col p-4 gap-4">
         <div class="flex gap-4 justify-between items-center">
-            <SettingsDialog />
             {#if viewStore.mode === "browse"}
                 <SearchInput
                     bind:value={queryStore.query}
