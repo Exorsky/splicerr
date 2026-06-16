@@ -219,12 +219,7 @@
         <Button
             variant="ghost"
             size="icon"
-            class={cn(
-                "size-8",
-                liked
-                    ? "text-red-500 hover:text-red-500"
-                    : "text-muted-foreground"
-            )}
+            class={cn("size-8", liked ? "text-foreground" : "text-muted-foreground")}
             title={liked ? "Remove like" : "Like"}
             onclick={() => toggleLike(sampleAsset)}
         >

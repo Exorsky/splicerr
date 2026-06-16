@@ -4,6 +4,7 @@
     import Input from "$lib/components/ui/input/input.svelte"
     import { ScrollArea } from "$lib/components/ui/scroll-area"
     import * as Popover from "$lib/components/ui/popover"
+    import * as Dialog from "$lib/components/ui/dialog"
     import Plus from "lucide-svelte/icons/plus"
     import Search from "lucide-svelte/icons/search"
     import Library from "lucide-svelte/icons/library"
@@ -30,6 +31,21 @@
     // uuid of the collection whose rename input is open, if any
     let renamingUuid = $state<string | null>(null)
     let renameName = $state("")
+
+    // Collection pending delete confirmation, if any
+    let deleteTarget = $state<{ uuid: string; name: string } | null>(null)
+
+    const confirmDelete = () => {
+        if (!deleteTarget) return
+        if (
+            viewStore.mode === "collection" &&
+            viewStore.collectionUuid === deleteTarget.uuid
+        ) {
+            openBrowse()
+        }
+        deleteCollection(deleteTarget.uuid)
+        deleteTarget = null
+    }
 
     const startCreating = async () => {
         creating = true
@@ -197,10 +213,11 @@
                                 </Popover.Close>
                                 <Popover.Close
                                     class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-muted"
-                                    onclick={() => {
-                                        if (active) openBrowse()
-                                        deleteCollection(collection.uuid)
-                                    }}
+                                    onclick={() =>
+                                        (deleteTarget = {
+                                            uuid: collection.uuid,
+                                            name: collection.name,
+                                        })}
                                 >
                                     <Trash2 size="14" /> Delete
                                 </Popover.Close>
@@ -216,3 +233,27 @@
         </div>
     </ScrollArea>
 </aside>
+
+<Dialog.Root
+    open={deleteTarget !== null}
+    onOpenChange={(open) => {
+        if (!open) deleteTarget = null
+    }}
+>
+    <Dialog.Content>
+        <Dialog.Header>
+            <Dialog.Title>Delete collection</Dialog.Title>
+        </Dialog.Header>
+        <p class="text-sm text-muted-foreground py-2">
+            Delete <span class="font-medium text-foreground"
+                >{deleteTarget?.name}</span
+            >? This can't be undone. The samples themselves aren't affected.
+        </p>
+        <Dialog.Footer>
+            <Button variant="outline" onclick={() => (deleteTarget = null)}>
+                Cancel
+            </Button>
+            <Button variant="destructive" onclick={confirmDelete}>Delete</Button>
+        </Dialog.Footer>
+    </Dialog.Content>
+</Dialog.Root>
