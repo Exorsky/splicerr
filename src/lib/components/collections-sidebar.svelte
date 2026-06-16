@@ -2,6 +2,7 @@
     import { cn } from "$lib/utils"
     import Button from "$lib/components/ui/button/button.svelte"
     import Input from "$lib/components/ui/input/input.svelte"
+    import Label from "$lib/components/ui/label/label.svelte"
     import { ScrollArea } from "$lib/components/ui/scroll-area"
     import * as Popover from "$lib/components/ui/popover"
     import * as Dialog from "$lib/components/ui/dialog"
@@ -28,9 +29,20 @@
     let newName = $state("")
     let newInputRef = $state<HTMLInputElement>(null!)
 
-    // uuid of the collection whose rename input is open, if any
-    let renamingUuid = $state<string | null>(null)
-    let renameName = $state("")
+    // Collection being edited in the Edit dialog, if any
+    let editTarget = $state<{ uuid: string; name: string } | null>(null)
+    let editName = $state("")
+
+    const openEdit = (uuid: string, name: string) => {
+        editTarget = { uuid, name }
+        editName = name
+    }
+
+    const commitEdit = () => {
+        if (!editTarget) return
+        renameCollection(editTarget.uuid, editName)
+        editTarget = null
+    }
 
     // Collection pending delete confirmation, if any
     let deleteTarget = $state<{ uuid: string; name: string } | null>(null)
@@ -63,15 +75,6 @@
         newName = ""
     }
 
-    const startRename = async (uuid: string, current: string) => {
-        renamingUuid = uuid
-        renameName = current
-    }
-
-    const commitRename = () => {
-        if (renamingUuid) renameCollection(renamingUuid, renameName)
-        renamingUuid = null
-    }
 </script>
 
 <aside
@@ -148,83 +151,53 @@
                 {@const active =
                     viewStore.mode === "collection" &&
                     viewStore.collectionUuid === collection.uuid}
-                {#if renamingUuid === collection.uuid}
-                    <div class="flex gap-1 items-center px-1 py-0.5">
-                        <Input
-                            value={renameName}
-                            oninput={(e) =>
-                                (renameName = e.currentTarget.value)}
-                            class="h-8"
-                            onkeydown={(e) => {
-                                if (e.key === "Enter") commitRename()
-                                if (e.key === "Escape") renamingUuid = null
-                            }}
-                        />
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            class="size-8 flex-shrink-0"
-                            onclick={commitRename}
-                        >
-                            <Check size="16" />
-                        </Button>
-                    </div>
-                {:else}
-                    <div
-                        class={cn(
-                            "group flex items-center gap-2 rounded-md pl-2 pr-1 py-1.5 text-sm hover:bg-muted",
-                            active && "bg-muted font-medium"
-                        )}
+                <div
+                    class={cn(
+                        "group flex items-center gap-2 rounded-md pl-2 pr-1 py-1.5 text-sm hover:bg-muted",
+                        active && "bg-muted font-medium"
+                    )}
+                >
+                    <button
+                        class="flex items-center gap-2 flex-grow min-w-0 text-left"
+                        onclick={() => openCollection(collection.uuid)}
                     >
-                        <button
-                            class="flex items-center gap-2 flex-grow min-w-0 text-left"
-                            onclick={() => openCollection(collection.uuid)}
+                        <Library size="16" class="flex-shrink-0" />
+                        <span class="truncate flex-grow">
+                            {collection.name}
+                        </span>
+                        <span
+                            class="text-xs text-muted-foreground flex-shrink-0"
                         >
-                            <Library size="16" class="flex-shrink-0" />
-                            <span class="truncate flex-grow">
-                                {collection.name}
-                            </span>
-                            <span
-                                class="text-xs text-muted-foreground flex-shrink-0"
+                            {collection.sample_uuids.length}
+                        </span>
+                    </button>
+                    <Popover.Root>
+                        <Popover.Trigger
+                            class="opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 text-muted-foreground flex-shrink-0 rounded p-0.5 hover:text-foreground"
+                        >
+                            <Ellipsis size="16" />
+                        </Popover.Trigger>
+                        <Popover.Content class="w-40 p-1" align="end" side="right">
+                            <Popover.Close
+                                class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
+                                onclick={() =>
+                                    openEdit(collection.uuid, collection.name)}
                             >
-                                {collection.sample_uuids.length}
-                            </span>
-                        </button>
-                        <Popover.Root>
-                            <Popover.Trigger
-                                class="opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 text-muted-foreground flex-shrink-0 rounded p-0.5 hover:text-foreground"
+                                <Pencil size="14" /> Edit
+                            </Popover.Close>
+                            <Popover.Close
+                                class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-muted"
+                                onclick={() =>
+                                    (deleteTarget = {
+                                        uuid: collection.uuid,
+                                        name: collection.name,
+                                    })}
                             >
-                                <Ellipsis size="16" />
-                            </Popover.Trigger>
-                            <Popover.Content
-                                class="w-40 p-1"
-                                align="end"
-                                side="right"
-                            >
-                                <Popover.Close
-                                    class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
-                                    onclick={() =>
-                                        startRename(
-                                            collection.uuid,
-                                            collection.name
-                                        )}
-                                >
-                                    <Pencil size="14" /> Rename
-                                </Popover.Close>
-                                <Popover.Close
-                                    class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-muted"
-                                    onclick={() =>
-                                        (deleteTarget = {
-                                            uuid: collection.uuid,
-                                            name: collection.name,
-                                        })}
-                                >
-                                    <Trash2 size="14" /> Delete
-                                </Popover.Close>
-                            </Popover.Content>
-                        </Popover.Root>
-                    </div>
-                {/if}
+                                <Trash2 size="14" /> Delete
+                            </Popover.Close>
+                        </Popover.Content>
+                    </Popover.Root>
+                </div>
             {:else}
                 <p class="text-xs text-muted-foreground px-2 py-1.5">
                     No collections yet. Click + to create one.
@@ -233,6 +206,36 @@
         </div>
     </ScrollArea>
 </aside>
+
+<Dialog.Root
+    open={editTarget !== null}
+    onOpenChange={(open) => {
+        if (!open) editTarget = null
+    }}
+>
+    <Dialog.Content>
+        <Dialog.Header>
+            <Dialog.Title>Edit collection</Dialog.Title>
+        </Dialog.Header>
+        <div class="flex flex-col gap-2 py-2">
+            <Label for="editName">Name</Label>
+            <Input
+                id="editName"
+                bind:value={editName}
+                class="h-9"
+                onkeydown={(e) => {
+                    if (e.key === "Enter") commitEdit()
+                }}
+            />
+        </div>
+        <Dialog.Footer>
+            <Button variant="outline" onclick={() => (editTarget = null)}>
+                Cancel
+            </Button>
+            <Button onclick={commitEdit} disabled={!editName.trim()}>Save</Button>
+        </Dialog.Footer>
+    </Dialog.Content>
+</Dialog.Root>
 
 <Dialog.Root
     open={deleteTarget !== null}
