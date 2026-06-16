@@ -59,62 +59,71 @@
 </script>
 
 <aside
-    class="flex flex-col w-56 flex-shrink-0 border-r border-border h-full p-3 gap-2"
+    class="flex flex-col w-56 flex-shrink-0 border-r border-border h-full p-3 gap-3"
 >
-    <div class="flex items-center justify-between pl-2">
-        <span class="text-sm font-semibold">Collections</span>
-        <Button
-            variant="ghost"
-            size="icon"
-            class="size-7 text-muted-foreground"
-            title="New collection"
-            onclick={() => openNewCollectionDialog()}
+    <div class="flex flex-col gap-0.5">
+        <span class="px-2 text-xs font-medium text-muted-foreground">
+            Library
+        </span>
+        <button
+            class={cn(
+                "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left w-full hover:bg-muted",
+                viewStore.mode === "browse" && "bg-muted font-medium"
+            )}
+            onclick={openBrowse}
         >
-            <Plus size="18" />
-        </Button>
+            <Search size="16" class="flex-shrink-0" />
+            Browse
+        </button>
     </div>
 
-    <button
-        class={cn(
-            "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left w-full hover:bg-muted",
-            viewStore.mode === "browse" && "bg-muted font-medium"
-        )}
-        onclick={openBrowse}
-    >
-        <Search size="16" class="flex-shrink-0" />
-        Browse
-    </button>
-
-    {#if likesCollection()}
-        {@const likesActive =
-            viewStore.mode === "collection" &&
-            viewStore.collectionUuid === LIKES_UUID}
-        <div
-            class={cn(
-                "flex items-center gap-2 rounded-md pl-2 pr-1 py-1.5 text-sm hover:bg-muted",
-                likesActive && "bg-muted font-medium"
-            )}
-        >
-            <button
-                class="flex items-center gap-2 flex-grow min-w-0 text-left"
-                onclick={() => openCollection(LIKES_UUID)}
-            >
-                <Heart size="16" class="flex-shrink-0" />
-                <span class="truncate flex-grow">Likes</span>
-                <span class="text-xs text-muted-foreground flex-shrink-0">
-                    {likesCollection()?.sample_uuids.length}
-                </span>
-            </button>
-            <!-- Spacer matching the user-collection menu button so counts align -->
-            <span class="flex-shrink-0 p-0.5" aria-hidden="true">
-                <span class="block size-4"></span>
+    <div class="flex flex-col gap-0.5 flex-grow min-h-0">
+        <div class="flex items-center justify-between pl-2">
+            <span class="text-xs font-medium text-muted-foreground">
+                Collections
             </span>
+            <Button
+                variant="ghost"
+                size="icon"
+                class="size-7 text-muted-foreground"
+                title="New collection"
+                onclick={() => openNewCollectionDialog()}
+            >
+                <Plus size="18" />
+            </Button>
         </div>
-    {/if}
 
-    <ScrollArea class="flex-grow -mx-1">
-        <div class="flex flex-col gap-0.5 px-1">
-            {#each userCollections() as collection (collection.uuid)}
+        <ScrollArea class="flex-grow -mx-1">
+            <div class="flex flex-col gap-0.5 px-1">
+                {#if likesCollection()}
+                    {@const likesActive =
+                        viewStore.mode === "collection" &&
+                        viewStore.collectionUuid === LIKES_UUID}
+                    <div
+                        class={cn(
+                            "flex items-center gap-2 rounded-md pl-2 pr-1 py-1.5 text-sm hover:bg-muted",
+                            likesActive && "bg-muted font-medium"
+                        )}
+                    >
+                        <button
+                            class="flex items-center gap-2 flex-grow min-w-0 text-left"
+                            onclick={() => openCollection(LIKES_UUID)}
+                        >
+                            <Heart size="16" class="flex-shrink-0" />
+                            <span class="truncate flex-grow">Likes</span>
+                            <span
+                                class="text-xs text-muted-foreground flex-shrink-0"
+                            >
+                                {likesCollection()?.sample_uuids.length}
+                            </span>
+                        </button>
+                        <!-- Spacer matching the menu button so counts align -->
+                        <span class="flex-shrink-0 p-0.5" aria-hidden="true">
+                            <span class="block size-4"></span>
+                        </span>
+                    </div>
+                {/if}
+                {#each userCollections() as collection (collection.uuid)}
                 {@const active =
                     viewStore.mode === "collection" &&
                     viewStore.collectionUuid === collection.uuid}
@@ -171,7 +180,8 @@
                 </p>
             {/each}
         </div>
-    </ScrollArea>
+        </ScrollArea>
+    </div>
 
     <div class="border-t border-border pt-2 -mx-1 px-1">
         <button
