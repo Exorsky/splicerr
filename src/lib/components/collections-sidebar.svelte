@@ -7,6 +7,7 @@
     import * as Popover from "$lib/components/ui/popover"
     import * as Dialog from "$lib/components/ui/dialog"
     import SettingsDialog from "$lib/components/settings-dialog.svelte"
+    import NewCollectionDialog from "$lib/components/new-collection-dialog.svelte"
     import { settingsDialog } from "$lib/shared/config.svelte"
     import Plus from "lucide-svelte/icons/plus"
     import Search from "lucide-svelte/icons/search"
@@ -16,21 +17,15 @@
     import Ellipsis from "lucide-svelte/icons/ellipsis"
     import Pencil from "lucide-svelte/icons/pencil"
     import Trash2 from "lucide-svelte/icons/trash-2"
-    import Check from "lucide-svelte/icons/check"
     import {
-        createCollection,
         deleteCollection,
         renameCollection,
         likesCollection,
         userCollections,
+        openNewCollectionDialog,
         LIKES_UUID,
     } from "$lib/shared/collections.svelte"
     import { openBrowse, openCollection, viewStore } from "$lib/shared/view.svelte"
-    import { tick } from "svelte"
-
-    let creating = $state(false)
-    let newName = $state("")
-    let newInputRef = $state<HTMLInputElement>(null!)
 
     // Collection being edited in the Edit dialog, if any
     let editTarget = $state<{ uuid: string; name: string } | null>(null)
@@ -61,23 +56,6 @@
         deleteCollection(deleteTarget.uuid)
         deleteTarget = null
     }
-
-    const startCreating = async () => {
-        creating = true
-        newName = ""
-        await tick()
-        newInputRef?.focus()
-    }
-
-    const commitCreate = () => {
-        if (newName.trim()) {
-            const collection = createCollection(newName)
-            openCollection(collection.uuid)
-        }
-        creating = false
-        newName = ""
-    }
-
 </script>
 
 <aside
@@ -89,34 +67,12 @@
             variant="ghost"
             size="icon"
             class="size-7 text-muted-foreground"
-            onclick={startCreating}
+            title="New collection"
+            onclick={() => openNewCollectionDialog()}
         >
             <Plus size="18" />
         </Button>
     </div>
-
-    {#if creating}
-        <div class="flex gap-1 items-center px-1">
-            <Input
-                bind:value={newName}
-                bind:ref={newInputRef}
-                placeholder="Collection name"
-                class="h-8"
-                onkeydown={(e) => {
-                    if (e.key === "Enter") commitCreate()
-                    if (e.key === "Escape") creating = false
-                }}
-            />
-            <Button
-                variant="ghost"
-                size="icon"
-                class="size-8 flex-shrink-0"
-                onclick={commitCreate}
-            >
-                <Check size="16" />
-            </Button>
-        </div>
-    {/if}
 
     <button
         class={cn(
@@ -228,6 +184,7 @@
     </div>
 </aside>
 
+<NewCollectionDialog />
 <SettingsDialog />
 
 <Dialog.Root

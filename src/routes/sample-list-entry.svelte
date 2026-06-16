@@ -27,11 +27,11 @@
     import {
         addSample,
         removeSample,
-        createCollection,
         isSampleInCollection,
         userCollections,
         toggleLike,
         isLiked,
+        openNewCollectionDialog,
         LIKES_UUID,
     } from "$lib/shared/collections.svelte"
 
@@ -52,7 +52,6 @@
         onremove?: () => void
     } = $props()
 
-    let newName = $state("")
     let menuOpen = $state(false)
     const liked = $derived(isLiked(sampleAsset.uuid))
     // Which view the three-dots popover shows: the root menu or the picker.
@@ -64,13 +63,6 @@
         } else {
             addSample(colUuid, sampleAsset)
         }
-    }
-
-    const createAndAdd = () => {
-        if (!newName.trim()) return
-        const collection = createCollection(newName)
-        addSample(collection.uuid, sampleAsset)
-        newName = ""
     }
 
     let playButtonRef = $state<HTMLButtonElement>(null!)
@@ -291,23 +283,16 @@
                             </button>
                         {/each}
                     </div>
-                    <div class="border-t border-border mt-1 pt-1 flex gap-1">
-                        <input
-                            class="flex h-8 w-full rounded-md bg-transparent px-2 text-sm focus:outline-none placeholder:text-muted-foreground"
-                            placeholder="New collection"
-                            bind:value={newName}
-                            onkeydown={(e) => {
-                                if (e.key === "Enter") createAndAdd()
+                    <div class="border-t border-border mt-1 pt-1">
+                        <button
+                            class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted text-left"
+                            onclick={() => {
+                                menuOpen = false
+                                openNewCollectionDialog(sampleAsset)
                             }}
-                        />
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            class="size-8 flex-shrink-0"
-                            onclick={createAndAdd}
                         >
-                            <Plus size="16" />
-                        </Button>
+                            <Plus size="16" /> New collection
+                        </button>
                     </div>
                 {/if}
             </Popover.Content>

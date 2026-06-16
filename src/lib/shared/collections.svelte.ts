@@ -36,6 +36,18 @@ export const collectionsStore = $state({
     loaded: false,
 })
 
+// Shared state for the "New collection" modal. When pendingSample is set, the
+// sample is added to the collection right after it's created.
+export const newCollectionDialog = $state({
+    open: false,
+    pendingSample: null as SampleAsset | null,
+})
+
+export function openNewCollectionDialog(sample: SampleAsset | null = null) {
+    newCollectionDialog.pendingSample = sample
+    newCollectionDialog.open = true
+}
+
 export const findCollection = (uuid: string) =>
     collectionsStore.collections.find((c) => c.uuid == uuid)
 
