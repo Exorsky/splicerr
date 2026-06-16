@@ -130,19 +130,27 @@
         {@const likesActive =
             viewStore.mode === "collection" &&
             viewStore.collectionUuid === LIKES_UUID}
-        <button
+        <div
             class={cn(
-                "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left w-full hover:bg-muted",
+                "flex items-center gap-2 rounded-md pl-2 pr-1 py-1.5 text-sm hover:bg-muted",
                 likesActive && "bg-muted font-medium"
             )}
-            onclick={() => openCollection(LIKES_UUID)}
         >
-            <Heart size="16" class="flex-shrink-0" />
-            <span class="flex-grow">Likes</span>
-            <span class="text-xs text-muted-foreground">
-                {likesCollection()?.sample_uuids.length}
+            <button
+                class="flex items-center gap-2 flex-grow min-w-0 text-left"
+                onclick={() => openCollection(LIKES_UUID)}
+            >
+                <Heart size="16" class="flex-shrink-0" />
+                <span class="truncate flex-grow">Likes</span>
+                <span class="text-xs text-muted-foreground flex-shrink-0">
+                    {likesCollection()?.sample_uuids.length}
+                </span>
+            </button>
+            <!-- Spacer matching the user-collection menu button so counts align -->
+            <span class="flex-shrink-0 p-0.5" aria-hidden="true">
+                <span class="block size-4"></span>
             </span>
-        </button>
+        </div>
     {/if}
 
     <ScrollArea class="flex-grow -mx-1">
