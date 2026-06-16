@@ -8,6 +8,7 @@
         loadConfig,
         settingsDialog,
     } from "$lib/shared/config.svelte"
+    import { loadCollections } from "$lib/shared/collections.svelte"
     import { onMount } from "svelte"
 
     let { children } = $props()
@@ -18,13 +19,14 @@
         getCurrentWebview().setZoom(config.ui_scale * DEFAULT_SCALE)
     })
 
-    onMount(() =>
+    onMount(() => {
         loadConfig().then(() => {
             if (!isSamplesDirValid()) {
                 settingsDialog.open = true
             }
         })
-    )
+        loadCollections()
+    })
 </script>
 
 <ModeWatcher />
