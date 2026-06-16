@@ -15,6 +15,10 @@ import { AssetFilesByUuids, querySplice } from "$lib/splice/api"
 
 const COLLECTIONS_FILE_NAME = "collections.json"
 
+// Reserved uuid for the built-in "Likes" collection. It always exists and
+// can't be renamed or deleted; the per-row heart toggles membership in it.
+export const LIKES_UUID = "likes"
+
 export type Collection = {
     uuid: string
     name: string
@@ -38,6 +42,36 @@ export const findCollection = (uuid: string) =>
 export const isSampleInCollection = (colUuid: string, sampleUuid: string) =>
     findCollection(colUuid)?.sample_uuids.includes(sampleUuid) ?? false
 
+/** The built-in Likes collection (always present after load). */
+export const likesCollection = () => findCollection(LIKES_UUID)
+
+/** User-created collections, excluding the built-in Likes collection. */
+export const userCollections = () =>
+    collectionsStore.collections.filter((c) => c.uuid != LIKES_UUID)
+
+export const isLiked = (sampleUuid: string) =>
+    isSampleInCollection(LIKES_UUID, sampleUuid)
+
+export function toggleLike(asset: SampleAsset) {
+    if (isLiked(asset.uuid)) {
+        removeSample(LIKES_UUID, asset.uuid)
+    } else {
+        addSample(LIKES_UUID, asset)
+    }
+}
+
+/** Creates the built-in Likes collection if it doesn't exist yet. */
+function ensureLikesCollection() {
+    if (findCollection(LIKES_UUID)) return
+    collectionsStore.collections.unshift({
+        uuid: LIKES_UUID,
+        name: "Likes",
+        created_at: Date.now(),
+        sample_uuids: [],
+        samples: {},
+    })
+}
+
 export async function loadCollections() {
     if (
         !(await exists(COLLECTIONS_FILE_NAME, {
@@ -59,6 +93,7 @@ export async function loadCollections() {
             console.error("⚠️ Failed to parse collections, starting empty", error)
         }
     }
+    ensureLikesCollection()
     collectionsStore.loaded = true
 }
 
@@ -98,6 +133,7 @@ export function createCollection(name: string): Collection {
 }
 
 export function renameCollection(uuid: string, name: string) {
+    if (uuid == LIKES_UUID) return
     const collection = findCollection(uuid)
     if (!collection) return
     collection.name = name.trim() || collection.name
@@ -105,6 +141,7 @@ export function renameCollection(uuid: string, name: string) {
 }
 
 export function deleteCollection(uuid: string) {
+    if (uuid == LIKES_UUID) return
     const index = collectionsStore.collections.findIndex((c) => c.uuid == uuid)
     if (index == -1) return
     collectionsStore.collections.splice(index, 1)

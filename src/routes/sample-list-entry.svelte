@@ -19,13 +19,20 @@
     import * as Popover from "$lib/components/ui/popover"
     import Plus from "lucide-svelte/icons/plus"
     import Check from "lucide-svelte/icons/check"
-    import X from "lucide-svelte/icons/x"
+    import Heart from "lucide-svelte/icons/heart"
+    import Ellipsis from "lucide-svelte/icons/ellipsis"
+    import ChevronLeft from "lucide-svelte/icons/chevron-left"
+    import ListPlus from "lucide-svelte/icons/list-plus"
+    import Trash2 from "lucide-svelte/icons/trash-2"
     import {
-        collectionsStore,
         addSample,
         removeSample,
         createCollection,
         isSampleInCollection,
+        userCollections,
+        toggleLike,
+        isLiked,
+        LIKES_UUID,
     } from "$lib/shared/collections.svelte"
 
     let {
@@ -46,6 +53,10 @@
     } = $props()
 
     let newName = $state("")
+    let menuOpen = $state(false)
+    const liked = $derived(isLiked(sampleAsset.uuid))
+    // Which view the three-dots popover shows: the root menu or the picker.
+    let menuView = $state<"root" | "collections">("root")
 
     const toggleInCollection = (colUuid: string) => {
         if (isSampleInCollection(colUuid, sampleAsset.uuid)) {
@@ -200,40 +211,69 @@
     </div>
     <!-- svelte-ignore node_invalid_placement_ssr -->
     <span
-        class="flex-shrink-0 flex items-center"
+        class="flex-shrink-0 flex items-center gap-0.5"
         onmousedown={(e) => e.stopPropagation()}
         ondragstart={(e) => e.preventDefault()}
         role="presentation"
     >
-        {#if collectionUuid}
-            <Button
-                variant="ghost"
-                size="icon"
-                class="size-8 text-muted-foreground hover:text-destructive"
-                title="Remove from collection"
-                onclick={() => onremove?.()}
+        <Button
+            variant="ghost"
+            size="icon"
+            class={cn(
+                "size-8",
+                liked
+                    ? "text-red-500 hover:text-red-500"
+                    : "text-muted-foreground"
+            )}
+            title={liked ? "Remove like" : "Like"}
+            onclick={() => toggleLike(sampleAsset)}
+        >
+            <Heart size="16" fill={liked ? "currentColor" : "none"} />
+        </Button>
+
+        <Popover.Root
+            bind:open={menuOpen}
+            onOpenChange={(open) => {
+                if (open) menuView = "root"
+            }}
+        >
+            <Popover.Trigger
+                class={cn(
+                    buttonVariants({ variant: "ghost", size: "icon" }),
+                    "size-8 text-muted-foreground"
+                )}
+                title="More"
             >
-                <X size="16" />
-            </Button>
-        {:else}
-            <Popover.Root>
-                <Popover.Trigger
-                    class={cn(
-                        buttonVariants({ variant: "ghost", size: "icon" }),
-                        "size-8 text-muted-foreground"
-                    )}
-                    title="Add to collection"
-                >
-                    <Plus size="16" />
-                </Popover.Trigger>
-                <Popover.Content class="w-56 p-1" align="end" side="left">
-                    <div class="flex flex-col">
-                        <p
-                            class="px-2 py-1.5 text-xs font-medium text-muted-foreground"
+                <Ellipsis size="16" />
+            </Popover.Trigger>
+            <Popover.Content class="w-56 p-1" align="end" side="left">
+                {#if menuView === "root"}
+                    <button
+                        class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted text-left"
+                        onclick={() => (menuView = "collections")}
+                    >
+                        <ListPlus size="16" /> Add to collection
+                    </button>
+                    {#if collectionUuid && collectionUuid !== LIKES_UUID}
+                        <button
+                            class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-muted text-left"
+                            onclick={() => {
+                                onremove?.()
+                                menuOpen = false
+                            }}
                         >
-                            Add to collection
-                        </p>
-                        {#each collectionsStore.collections as collection (collection.uuid)}
+                            <Trash2 size="16" /> Remove from collection
+                        </button>
+                    {/if}
+                {:else}
+                    <button
+                        class="flex w-full items-center gap-1 rounded-sm px-1 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground text-left"
+                        onclick={() => (menuView = "root")}
+                    >
+                        <ChevronLeft size="14" /> Add to collection
+                    </button>
+                    <div class="flex flex-col max-h-56 overflow-y-auto">
+                        {#each userCollections() as collection (collection.uuid)}
                             {@const inIt = isSampleInCollection(
                                 collection.uuid,
                                 sampleAsset.uuid
@@ -255,27 +295,27 @@
                                 </span>
                             </button>
                         {/each}
-                        <div class="border-t border-border mt-1 pt-1 flex gap-1">
-                            <input
-                                class="flex h-8 w-full rounded-md bg-transparent px-2 text-sm focus:outline-none placeholder:text-muted-foreground"
-                                placeholder="New collection"
-                                bind:value={newName}
-                                onkeydown={(e) => {
-                                    if (e.key === "Enter") createAndAdd()
-                                }}
-                            />
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="size-8 flex-shrink-0"
-                                onclick={createAndAdd}
-                            >
-                                <Plus size="16" />
-                            </Button>
-                        </div>
                     </div>
-                </Popover.Content>
-            </Popover.Root>
-        {/if}
+                    <div class="border-t border-border mt-1 pt-1 flex gap-1">
+                        <input
+                            class="flex h-8 w-full rounded-md bg-transparent px-2 text-sm focus:outline-none placeholder:text-muted-foreground"
+                            placeholder="New collection"
+                            bind:value={newName}
+                            onkeydown={(e) => {
+                                if (e.key === "Enter") createAndAdd()
+                            }}
+                        />
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            class="size-8 flex-shrink-0"
+                            onclick={createAndAdd}
+                        >
+                            <Plus size="16" />
+                        </Button>
+                    </div>
+                {/if}
+            </Popover.Content>
+        </Popover.Root>
     </span>
 </button>

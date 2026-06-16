@@ -7,15 +7,18 @@
     import Plus from "lucide-svelte/icons/plus"
     import Search from "lucide-svelte/icons/search"
     import Library from "lucide-svelte/icons/library"
+    import Heart from "lucide-svelte/icons/heart"
     import Ellipsis from "lucide-svelte/icons/ellipsis"
     import Pencil from "lucide-svelte/icons/pencil"
     import Trash2 from "lucide-svelte/icons/trash-2"
     import Check from "lucide-svelte/icons/check"
     import {
-        collectionsStore,
         createCollection,
         deleteCollection,
         renameCollection,
+        likesCollection,
+        userCollections,
+        LIKES_UUID,
     } from "$lib/shared/collections.svelte"
     import { openBrowse, openCollection, viewStore } from "$lib/shared/view.svelte"
     import { tick } from "svelte"
@@ -104,9 +107,28 @@
         Browse
     </button>
 
+    {#if likesCollection()}
+        {@const likesActive =
+            viewStore.mode === "collection" &&
+            viewStore.collectionUuid === LIKES_UUID}
+        <button
+            class={cn(
+                "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left w-full hover:bg-muted",
+                likesActive && "bg-muted font-medium"
+            )}
+            onclick={() => openCollection(LIKES_UUID)}
+        >
+            <Heart size="16" class="flex-shrink-0" />
+            <span class="flex-grow">Likes</span>
+            <span class="text-xs text-muted-foreground">
+                {likesCollection()?.sample_uuids.length}
+            </span>
+        </button>
+    {/if}
+
     <ScrollArea class="flex-grow -mx-1">
         <div class="flex flex-col gap-0.5 px-1">
-            {#each collectionsStore.collections as collection (collection.uuid)}
+            {#each userCollections() as collection (collection.uuid)}
                 {@const active =
                     viewStore.mode === "collection" &&
                     viewStore.collectionUuid === collection.uuid}
