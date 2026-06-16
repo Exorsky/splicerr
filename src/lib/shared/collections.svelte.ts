@@ -7,7 +7,11 @@ import {
     mkdir,
 } from "@tauri-apps/plugin-fs"
 import { appConfigDir } from "@tauri-apps/api/path"
-import type { SampleAsset } from "$lib/splice/types"
+import type {
+    AssetFilesByUuidsResponse,
+    SampleAsset,
+} from "$lib/splice/types"
+import { AssetFilesByUuids, querySplice } from "$lib/splice/api"
 
 const COLLECTIONS_FILE_NAME = "collections.json"
 
@@ -125,6 +129,46 @@ export function removeSample(colUuid: string, sampleUuid: string) {
     if (index != -1) collection.sample_uuids.splice(index, 1)
     delete collection.samples[sampleUuid]
     saveCollections()
+}
+
+/**
+ * Re-resolves the signed CDN urls for every sample in a collection. The
+ * `files[].url`s cached in collections.json expire, so before playing/dragging
+ * from a collection we fetch fresh files by uuid and merge the new urls into
+ * the cached files, matching by stable file uuid (the array order — audio at
+ * files[0], waveform at files[1] — must be preserved for playback/waveform).
+ */
+export async function refreshCollectionUrls(colUuid: string) {
+    const collection = findCollection(colUuid)
+    if (!collection || collection.sample_uuids.length == 0) return
+
+    const response = (await querySplice(AssetFilesByUuids, {
+        assetUuids: [...collection.sample_uuids],
+    })) as AssetFilesByUuidsResponse | null
+
+    const lists = response?.data?.assetFiles
+    if (!lists) {
+        console.warn("⚠️ Could not refresh collection urls")
+        return
+    }
+
+    let refreshed = false
+    for (const list of lists) {
+        const sample = collection.samples[list.assetUuid]
+        if (!sample) continue
+        for (const freshFile of list.files ?? []) {
+            const existing = sample.files.find((f) => f.uuid == freshFile.uuid)
+            if (existing && freshFile.url) {
+                existing.url = freshFile.url
+                refreshed = true
+            }
+        }
+    }
+
+    if (refreshed) {
+        saveCollections()
+        console.info("🔗 Refreshed collection sample urls")
+    }
 }
 
 /** Samples of a collection in their stored order. */

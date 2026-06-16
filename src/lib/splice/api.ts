@@ -65,6 +65,12 @@ export const PacksByPermalink = {
     query: "query PackByPermalink($permalink: String!) {\n  pack: packAsset(permalink: $permalink) {\n    uuid\n    name\n    main_genre\n    description\n    permalink_slug\n    permalink_base_url\n    provider {\n      uuid\n      name\n      permalink_slug\n      __typename\n    }\n    files {\n      uuid\n      asset_file_type_slug\n      url\n      path\n      __typename\n    }\n    child_asset_counts {\n      type\n      count\n      __typename\n    }\n    companion_packs {\n      uuid\n      description\n      permalink_slug\n      files {\n        uuid\n        asset_file_type_slug\n        url\n        path\n        __typename\n      }\n      main_genre\n      provider {\n        uuid\n        name\n        permalink_slug\n        __typename\n      }\n      main_genre\n      name\n      __typename\n    }\n    story {\n      uuid\n      background_url\n      description\n      title\n      videos {\n        background_url\n        url\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}",
 }
 
+export const AssetFilesByUuids = {
+    operationName: "AssetFilesByUuids",
+    variables: { assetUuids: [] as string[] },
+    query: "query AssetFilesByUuids($assetUuids: [GUID!]!) {\n  assetFiles(assetUuids: $assetUuids) {\n    assetUuid\n    files {\n      uuid\n      name\n      hash\n      path\n      asset_file_type_slug\n      url\n      __typename\n    }\n    __typename\n  }\n}",
+}
+
 export const SoundsSearchAutocomplete = {
     operationName: "SoundsSearchAutocomplete",
     variables: { term: "" },
