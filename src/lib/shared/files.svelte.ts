@@ -24,7 +24,7 @@ const withSuffix = (name: string, suffix: string) => {
         : name.slice(0, dot) + suffix + name.slice(dot)
 }
 
-export const sampleAssetPath = (sampleAsset: SampleAsset, suffix = "") =>
+const sampleAssetPath = (sampleAsset: SampleAsset, suffix = "") =>
     sanitizePath(
         `${sampleAsset.parents.items[0].name}/${withSuffix(sampleAsset.name, suffix)}`
     )

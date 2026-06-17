@@ -2,7 +2,7 @@ import { zipSync, type Zippable } from "fflate"
 import { save } from "@tauri-apps/plugin-dialog"
 import { writeFile } from "@tauri-apps/plugin-fs"
 import { findCollection, refreshCollectionUrls, collectionSamples } from "./collections.svelte"
-import { encodeSampleWav, sampleAssetPath } from "./files.svelte"
+import { encodeSampleWav } from "./files.svelte"
 
 const sanitizeFileName = (name: string) =>
     name.replace(/[^a-zA-Z0-9#_\-. ]/g, "_").trim() || "collection"
@@ -45,8 +45,10 @@ export async function exportCollectionToZip(
         for (const sample of samples) {
             try {
                 const wav = await encodeSampleWav(sample, 0)
-                // Force a .wav extension and de-duplicate colliding entry names.
-                let name = sampleAssetPath(sample).replace(/\.[^./]*$/, "") + ".wav"
+                // Flat archive: just the file name (last path segment), forced to
+                // .wav, with colliding names de-duplicated.
+                const base = sample.name.split("/").pop() || "sample"
+                let name = sanitizeFileName(base).replace(/\.[^.]*$/, "") + ".wav"
                 let i = 1
                 while (name in entries) {
                     name = name.replace(/\.wav$/, ` (${i++}).wav`)
