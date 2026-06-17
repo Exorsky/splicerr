@@ -83,6 +83,21 @@
         return [...counts.values()].sort((a, b) => b.count - a.count)
     })
 
+    // Which empty-state to show, derived from the same source as the list so the
+    // message can never disagree with what's actually rendered (e.g. flashing
+    // "Empty collection" while switching back to Browse).
+    const emptyStateKind = $derived.by(() => {
+        if (shownSamples.length > 0) return null
+        if (viewStore.mode === "collection") {
+            return viewStore.tagFilter.length > 0
+                ? "no-tag-match"
+                : "empty-collection"
+        }
+        if (loading.fetchError) return "error"
+        if (loading.beforeFirstLoad) return "welcome"
+        return "no-results"
+    })
+
     // TODO: Taxonomy comboboxes (maybe just pass all tags to each)
     // const instrumentTags = $derived(() =>
     //     dataStore.tag_summary.filter(
@@ -105,10 +120,13 @@
     })
 
     storeCallbacks.onbeforedataupdate = () => {
-        viewportRef.scrollTo({ top: 0, behavior: "smooth" })
+        // The tag drawer/viewport only exist in browse mode; a fetch can resolve
+        // while a collection is open, so bail out if they're not mounted.
+        viewportRef?.scrollTo({ top: 0, behavior: "smooth" })
     }
 
     storeCallbacks.onbeforetagsupdate = () => {
+        if (!tagsDrawerRef || !tagsContainerRef) return
         tagsDrawerRef.style.height = `${tagsContainerRef.offsetHeight}px`
     }
 
@@ -455,24 +473,22 @@
                 <div
                     class="flex flex-col gap-2 justify-center items-center size-full text-muted-foreground"
                 >
-                    {#if viewStore.mode === "collection"}
-                        {#if viewStore.tagFilter.length > 0}
-                            <Search size="48" />
-                            <p class="font-bold text-xl">No matches</p>
-                            <p class="text-sm">No sounds match the selected tags.</p>
-                        {:else}
-                            <Library size="48" />
-                            <p class="font-bold text-xl">Empty collection</p>
-                            <p class="text-sm">
-                                Add sounds from Browse using the menu on each row.
-                            </p>
-                        {/if}
-                    {:else if loading.fetchError}
+                    {#if emptyStateKind === "no-tag-match"}
+                        <Search size="48" />
+                        <p class="font-bold text-xl">No matches</p>
+                        <p class="text-sm">No sounds match the selected tags.</p>
+                    {:else if emptyStateKind === "empty-collection"}
+                        <Library size="48" />
+                        <p class="font-bold text-xl">Empty collection</p>
+                        <p class="text-sm">
+                            Add sounds from Browse using the menu on each row.
+                        </p>
+                    {:else if emptyStateKind === "error"}
                         <Ghost size="48" />
                         <p class="font-bold text-xl">Something went wrong :/</p>
                         <p class="text-sm">Couldn't load any samples</p>
                         <Button onclick={fetchAssets}>Retry</Button>
-                    {:else if loading.beforeFirstLoad}
+                    {:else if emptyStateKind === "welcome"}
                         <Smile size="48" />
                         <p class="font-bold text-xl">Hey there!</p>
                         <p class="text-sm">Make some cool music, will ya?</p>
