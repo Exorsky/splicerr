@@ -33,7 +33,7 @@ export function toast(
         description: opts.description,
         variant: opts.variant ?? "default",
     })
-    const duration = opts.duration ?? 4000
+    const duration = opts.duration ?? 10000
     if (duration > 0) {
         setTimeout(() => dismissToast(id), duration)
     }
