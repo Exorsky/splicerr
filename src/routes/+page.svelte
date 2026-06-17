@@ -39,19 +39,27 @@
         removeSample,
     } from "$lib/shared/collections.svelte"
 
+    // Single source of truth for the active view. The header, list, empty state
+    // and row actions all key off this one derived, so they can never disagree
+    // mid-switch (which used to flash "Empty collection" over Browse). Falls back
+    // to browse if the active collection was deleted.
+    const view = $derived.by(() => {
+        if (viewStore.mode === "collection" && viewStore.collectionUuid) {
+            const collection = findCollection(viewStore.collectionUuid)
+            if (collection) return { kind: "collection" as const, collection }
+        }
+        return { kind: "browse" as const }
+    })
+
     const activeCollection = $derived(
-        viewStore.mode === "collection" && viewStore.collectionUuid
-            ? findCollection(viewStore.collectionUuid)
-            : null
+        view.kind === "collection" ? view.collection : null
     )
 
     // The samples shown in the main list: search results in browse mode,
     // the collection's stored samples (optionally tag-filtered) in collection mode.
     const shownSamples = $derived.by(() => {
-        if (viewStore.mode !== "collection" || !viewStore.collectionUuid) {
-            return dataStore.sampleAssets
-        }
-        const samples = collectionSamples(viewStore.collectionUuid)
+        if (view.kind !== "collection") return dataStore.sampleAssets
+        const samples = collectionSamples(view.collection.uuid)
         if (viewStore.tagFilter.length == 0) return samples
         return samples.filter((sample) =>
             viewStore.tagFilter.every((tagUuid) =>
@@ -62,14 +70,12 @@
 
     // Aggregated tag counts across the open collection's samples, most common first.
     const collectionTagSummary = $derived.by(() => {
-        if (viewStore.mode !== "collection" || !viewStore.collectionUuid) {
-            return []
-        }
+        if (view.kind !== "collection") return []
         const counts = new Map<
             string,
             { uuid: string; label: string; count: number }
         >()
-        for (const sample of collectionSamples(viewStore.collectionUuid)) {
+        for (const sample of collectionSamples(view.collection.uuid)) {
             for (const tag of sample.tags) {
                 const entry = counts.get(tag.uuid) ?? {
                     uuid: tag.uuid,
@@ -84,11 +90,10 @@
     })
 
     // Which empty-state to show, derived from the same source as the list so the
-    // message can never disagree with what's actually rendered (e.g. flashing
-    // "Empty collection" while switching back to Browse).
+    // message can never disagree with what's actually rendered.
     const emptyStateKind = $derived.by(() => {
         if (shownSamples.length > 0) return null
-        if (viewStore.mode === "collection") {
+        if (view.kind === "collection") {
             return viewStore.tagFilter.length > 0
                 ? "no-tag-match"
                 : "empty-collection"
@@ -221,7 +226,7 @@
         <main class="flex flex-col flex-grow min-w-0">
     <div class="flex flex-col p-4 gap-4">
         <div class="flex gap-4 justify-between items-center">
-            {#if viewStore.mode === "browse"}
+            {#if view.kind === "browse"}
                 <SearchInput
                     bind:value={queryStore.query}
                     onsubmit={fetchAssets}
@@ -250,7 +255,7 @@
             {/if}
         </div>
 
-        {#if viewStore.mode === "browse"}
+        {#if view.kind === "browse"}
         <div
             class="transition-[height] ease-in-out overflow-clip"
             bind:this={tagsDrawerRef}
@@ -449,13 +454,13 @@
                     {sampleAsset}
                     {selected}
                     playing={selected && !globalAudio.paused}
-                    collectionUuid={viewStore.mode === "collection"
-                        ? viewStore.collectionUuid
+                    collectionUuid={view.kind === "collection"
+                        ? view.collection.uuid
                         : null}
                     onremove={() => {
-                        if (viewStore.collectionUuid)
+                        if (view.kind === "collection")
                             removeSample(
-                                viewStore.collectionUuid,
+                                view.collection.uuid,
                                 sampleAsset.uuid
                             )
                     }}
@@ -499,7 +504,7 @@
                     {/if}
                 </div>
             {/each}
-            {#if viewStore.mode === "browse" && loading.fetchError && dataStore.sampleAssets.length > 0}
+            {#if view.kind === "browse" && loading.fetchError && dataStore.sampleAssets.length > 0}
                 <div
                     class="flex flex-col py-8 gap-2 justify-center items-center text-muted-foreground"
                 >
