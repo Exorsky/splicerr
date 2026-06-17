@@ -83,9 +83,16 @@ jobs:
               (e.g. just the drums).
             - **Manage collections.** Rename via an Edit dialog and delete with a
               confirmation prompt.
-            - **Export to .zip.** Export a whole collection as a flat zip of WAV files.
+            - **Export to .zip.** Export a whole collection as a flat zip of WAV
+              files, then click the path in the notification to reveal it in your
+              file manager.
+            - **Toast notifications.** Friendly confirmations for create / rename /
+              delete / export actions.
             - **Settings moved into the sidebar**, plus an **Open DevTools** button for
               troubleshooting.
+
+            > Collections live locally in your user data folder, so they're kept across
+            > app updates.
 
             ### 🧰 Also included from previous releases
             - **Transpose** — shift samples by key or by semitones, tempo-preserving,
