@@ -19,6 +19,8 @@
     import { open as openDialog } from "@tauri-apps/plugin-dialog"
     import ThemeSelect from "./theme-select.svelte"
     import Switch from "$lib/components/ui/switch/switch.svelte"
+    import Terminal from "lucide-svelte/icons/terminal"
+    import { invoke } from "@tauri-apps/api/core"
 
     let flashbangAudio = $state<HTMLAudioElement>(null!)
 </script>
@@ -153,6 +155,20 @@
                         {config.repeat_audio ? "Enabled" : "Disabled"}
                     </Label>
                 </div>
+            </div>
+            <div class="flex flex-col gap-2">
+                <Label>Developer</Label>
+                <p class="text-muted-foreground text-sm">
+                    Open the webview developer tools (console, network, etc.).
+                </p>
+                <Button
+                    variant="outline"
+                    class="self-start gap-2"
+                    onclick={() => invoke("open_devtools")}
+                >
+                    <Terminal size="16" />
+                    Open DevTools
+                </Button>
             </div>
         </div>
         <Dialog.Footer>
