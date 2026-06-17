@@ -65,7 +65,11 @@
         const name = deleteTarget.name
         deleteCollection(deleteTarget.uuid)
         deleteTarget = null
-        toast({ title: "Collection deleted", description: name })
+        toast({
+            title: "Collection deleted",
+            description: name,
+            variant: "destructive",
+        })
     }
 
     const handleExport = async (uuid: string) => {

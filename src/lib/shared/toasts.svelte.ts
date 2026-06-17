@@ -1,4 +1,4 @@
-export type ToastVariant = "default" | "success" | "error"
+export type ToastVariant = "default" | "success" | "error" | "destructive"
 
 export type Toast = {
     id: string

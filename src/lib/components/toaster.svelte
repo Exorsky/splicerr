@@ -6,11 +6,13 @@
     import CheckCircle2 from "lucide-svelte/icons/circle-check"
     import CircleAlert from "lucide-svelte/icons/circle-alert"
     import Info from "lucide-svelte/icons/info"
+    import Trash2 from "lucide-svelte/icons/trash-2"
     import X from "lucide-svelte/icons/x"
 
     const icons = {
         success: CheckCircle2,
         error: CircleAlert,
+        destructive: Trash2,
         default: Info,
     }
 </script>
@@ -21,7 +23,13 @@
     {#each toasts as t (t.id)}
         {@const Icon = icons[t.variant]}
         <div
-            class="pointer-events-auto flex items-start gap-3.5 rounded-xl border bg-background p-4 shadow-xl"
+            class={cn(
+                "pointer-events-auto flex items-start gap-3.5 rounded-xl border border-l-4 bg-background p-4 shadow-xl",
+                t.variant === "success" && "border-l-green-500",
+                (t.variant === "error" || t.variant === "destructive") &&
+                    "border-l-destructive",
+                t.variant === "default" && "border-l-muted-foreground"
+            )}
             in:fly={{ x: 24, duration: 200 }}
             out:fly={{ x: 24, duration: 150 }}
             animate:flip={{ duration: 200 }}
@@ -31,7 +39,8 @@
                 class={cn(
                     "flex-shrink-0 mt-0.5",
                     t.variant === "success" && "text-green-500",
-                    t.variant === "error" && "text-destructive",
+                    (t.variant === "error" || t.variant === "destructive") &&
+                        "text-destructive",
                     t.variant === "default" && "text-muted-foreground"
                 )}
             />
