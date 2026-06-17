@@ -9,6 +9,7 @@
         newCollectionDialog,
     } from "$lib/shared/collections.svelte"
     import { openCollection } from "$lib/shared/view.svelte"
+    import { toast } from "$lib/shared/toasts.svelte"
 
     let name = $state("")
 
@@ -30,6 +31,11 @@
         }
         newCollectionDialog.open = false
         newCollectionDialog.pendingSample = null
+        toast({
+            title: "Collection created",
+            description: collection.name,
+            variant: "success",
+        })
     }
 </script>
 

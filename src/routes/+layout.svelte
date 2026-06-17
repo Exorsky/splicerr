@@ -9,6 +9,7 @@
         settingsDialog,
     } from "$lib/shared/config.svelte"
     import { loadCollections } from "$lib/shared/collections.svelte"
+    import Toaster from "$lib/components/toaster.svelte"
     import { onMount } from "svelte"
 
     let { children } = $props()
@@ -31,3 +32,4 @@
 
 <ModeWatcher />
 {@render children?.()}
+<Toaster />

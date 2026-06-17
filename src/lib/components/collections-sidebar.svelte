@@ -31,6 +31,7 @@
         exportCollectionToZip,
         exportState,
     } from "$lib/shared/export.svelte"
+    import { toast } from "$lib/shared/toasts.svelte"
     import { openBrowse, openCollection, viewStore } from "$lib/shared/view.svelte"
 
     // Collection being edited in the Edit dialog, if any
@@ -44,8 +45,10 @@
 
     const commitEdit = () => {
         if (!editTarget) return
+        const name = editName.trim()
         renameCollection(editTarget.uuid, editName)
         editTarget = null
+        if (name) toast({ title: "Collection updated", description: name })
     }
 
     // Collection pending delete confirmation, if any
@@ -59,15 +62,29 @@
         ) {
             openBrowse()
         }
+        const name = deleteTarget.name
         deleteCollection(deleteTarget.uuid)
         deleteTarget = null
+        toast({ title: "Collection deleted", description: name })
     }
 
     const handleExport = async (uuid: string) => {
         try {
-            await exportCollectionToZip(uuid)
+            const path = await exportCollectionToZip(uuid)
+            if (path) {
+                toast({
+                    title: "Collection exported",
+                    description: path,
+                    variant: "success",
+                })
+            }
         } catch (e) {
             console.error("⚠️ Collection export failed", e)
+            toast({
+                title: "Export failed",
+                description: e instanceof Error ? e.message : String(e),
+                variant: "error",
+            })
         }
     }
 </script>
