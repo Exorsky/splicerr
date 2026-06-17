@@ -17,6 +17,8 @@
     import Ellipsis from "lucide-svelte/icons/ellipsis"
     import Pencil from "lucide-svelte/icons/pencil"
     import Trash2 from "lucide-svelte/icons/trash-2"
+    import Download from "lucide-svelte/icons/download"
+    import LoaderCircle from "lucide-svelte/icons/loader-circle"
     import {
         deleteCollection,
         renameCollection,
@@ -25,6 +27,10 @@
         openNewCollectionDialog,
         LIKES_UUID,
     } from "$lib/shared/collections.svelte"
+    import {
+        exportCollectionToZip,
+        exportState,
+    } from "$lib/shared/export.svelte"
     import { openBrowse, openCollection, viewStore } from "$lib/shared/view.svelte"
 
     // Collection being edited in the Edit dialog, if any
@@ -55,6 +61,14 @@
         }
         deleteCollection(deleteTarget.uuid)
         deleteTarget = null
+    }
+
+    const handleExport = async (uuid: string) => {
+        try {
+            await exportCollectionToZip(uuid)
+        } catch (e) {
+            console.error("⚠️ Collection export failed", e)
+        }
     }
 </script>
 
@@ -142,8 +156,11 @@
                             {collection.name}
                         </span>
                         <span
-                            class="text-xs text-muted-foreground flex-shrink-0"
+                            class="text-xs text-muted-foreground flex-shrink-0 flex items-center gap-1"
                         >
+                            {#if exportState.busy.has(collection.uuid)}
+                                <LoaderCircle size="12" class="animate-spin" />
+                            {/if}
                             {collection.sample_uuids.length}
                         </span>
                     </button>
@@ -153,13 +170,19 @@
                         >
                             <Ellipsis size="16" />
                         </Popover.Trigger>
-                        <Popover.Content class="w-40 p-1" align="end" side="right">
+                        <Popover.Content class="w-44 p-1" align="end" side="right">
                             <Popover.Close
                                 class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
                                 onclick={() =>
                                     openEdit(collection.uuid, collection.name)}
                             >
                                 <Pencil size="14" /> Edit
+                            </Popover.Close>
+                            <Popover.Close
+                                class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-muted"
+                                onclick={() => handleExport(collection.uuid)}
+                            >
+                                <Download size="14" /> Export collection
                             </Popover.Close>
                             <Popover.Close
                                 class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-muted"

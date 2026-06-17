@@ -83,6 +83,8 @@ jobs:
               (e.g. just the drums).
             - **Manage collections.** Rename via an Edit dialog and delete with a
               confirmation prompt.
+            - **Export to .zip.** Export a whole collection as a zip of WAV files,
+              organized into per-pack folders.
             - **Settings moved into the sidebar**, plus an **Open DevTools** button for
               troubleshooting.
 

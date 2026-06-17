@@ -24,7 +24,7 @@ const withSuffix = (name: string, suffix: string) => {
         : name.slice(0, dot) + suffix + name.slice(dot)
 }
 
-const sampleAssetPath = (sampleAsset: SampleAsset, suffix = "") =>
+export const sampleAssetPath = (sampleAsset: SampleAsset, suffix = "") =>
     sanitizePath(
         `${sampleAsset.parents.items[0].name}/${withSuffix(sampleAsset.name, suffix)}`
     )
@@ -54,6 +54,51 @@ export async function absoluteSamplePath(sampleAsset: SampleAsset, suffix = "") 
     return await join(config.samples_dir, sampleAssetPath(sampleAsset, suffix))
 }
 
+/**
+ * Descrambles a sample and returns its decoded, trimmed WAV bytes (16-bit),
+ * pitch-shifted by `semitones` (defaults to the current transpose setting).
+ * Pure: does no disk I/O, so it's reused for both saving and zip export.
+ */
+export async function encodeSampleWav(
+    sampleAsset: SampleAsset,
+    semitones = semitonesFor(sampleAsset)
+): Promise<Uint8Array> {
+    const blobURL = await getDescrambledSampleURL(sampleAsset)
+
+    const response = await fetch(blobURL)
+
+    const blob = await response.blob()
+
+    const buffer = await blob.arrayBuffer()
+
+    const decoded = await new AudioContext().decodeAudioData(buffer)
+    // Apply tempo-preserving pitch shift before trimming/encoding (no-op when 0)
+    const samples = pitchShiftAudioBuffer(decoded, semitones)
+    const channels: Float32Array[] = []
+
+    for (let i = 0; i < samples.numberOfChannels; i++) {
+        const channel = samples.getChannelData(i)
+
+        // Calculate 12ms in samples based on the actual sample rate
+        const trimSamples = config.cut_mp3_delay ? Math.floor(samples.sampleRate * 0.012) : 0
+
+        const start = trimSamples
+        const end = (sampleAsset.duration / 1000) * samples.sampleRate + start
+
+        // Make sure we don't try to slice beyond the available data
+        const safeEnd = Math.min(end, channel.length)
+
+        channels.push(channel.subarray(start, safeEnd))
+    }
+
+    const wavData = encode(channels as any, {
+        bitDepth: 16,
+        sampleRate: samples.sampleRate,
+    })
+
+    return new Uint8Array(wavData)
+}
+
 export async function saveSample(sampleAsset: SampleAsset) {
     const semitones = semitonesFor(sampleAsset)
     const absolutePath = await absoluteSamplePath(
@@ -70,45 +115,14 @@ export async function saveSample(sampleAsset: SampleAsset) {
         return absolutePath
     }
 
-    const blobURL = await getDescrambledSampleURL(sampleAsset)
-
-    const response = await fetch(blobURL)
-
-    const blob = await response.blob()
-
-    const buffer = await blob.arrayBuffer()
-
-    const decoded = await new AudioContext().decodeAudioData(buffer)
-    // Apply tempo-preserving pitch shift before trimming/encoding (no-op when 0)
-    const samples = pitchShiftAudioBuffer(decoded, semitones)
-    const channels: Float32Array[] = []
-
-    for (let i = 0; i < samples.numberOfChannels; i++) {
-        const channel = samples.getChannelData(i)
-        
-        // Calculate 12ms in samples based on the actual sample rate
-        const trimSamples = config.cut_mp3_delay ? Math.floor(samples.sampleRate * 0.012) : 0
-        
-        const start = trimSamples
-        const end = (sampleAsset.duration / 1000) * samples.sampleRate + start
-        
-        // Make sure we don't try to slice beyond the available data
-        const safeEnd = Math.min(end, channel.length)
-        
-        channels.push(channel.subarray(start, safeEnd))
-    }
-
-    const wavData = encode(channels as any, {
-        bitDepth: 16,
-        sampleRate: samples.sampleRate,
-    })
+    const wavData = await encodeSampleWav(sampleAsset, semitones)
 
     console.log("🏆 Sample converted! Saving at", absolutePath)
 
     await ensureFileDirectoryExists(absolutePath)
 
     const file = await create(absolutePath)
-    await file.write(new Uint8Array(wavData))
+    await file.write(wavData)
     await file.close()
 
     console.log("🎉 Success!")
