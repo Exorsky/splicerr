@@ -32,6 +32,7 @@ https://github.com/user-attachments/assets/34f1ba90-c881-4a04-a5df-c147bdb51c2c
 ## Features
 
 - Drag-and-drop samples
+- **Collections & Likes — organize and tag-filter your sounds locally** ✨ _new in this fork_
 - **Transpose by key or pitch (tempo-preserving)** ✨ _new in this fork_
 - Search suggestions
 - Tag filtering

@@ -62,32 +62,35 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          releaseName: 'Splicerr v__VERSION__ — API fix + Transpose'
+          releaseName: 'Splicerr v__VERSION__ — Collections'
           releaseBody: |
-            ## Splicerr v1.0.11 — community fork
+            ## Splicerr v1.0.12 — community fork
 
             Temporary fork of [Robert-K/splicerr](https://github.com/Robert-K/splicerr)
-            that restores functionality and adds a bonus feature.
+            that restores functionality and adds bonus features.
 
-            ### 🔧 Fixes
-            - **Drag-and-drop crash fixed on macOS Sequoia.** Dragging samples crashed
-              the app on macOS 15 Sequoia (EXC_BAD_ACCESS in NSViewAlignRect), including
-              on Intel Macs and Apple Silicon running x86_64 builds. Root cause: the
-              native drag library (v2.0.0) read a nil `NSApp.currentEvent` when the drag
-              was initiated asynchronously. Fixed by upgrading to `tauri-plugin-drag 2.1`
-              which guards against nil and ships an explicit macOS Intel crash fix.
-              The sample WAV is now also prepared ahead of the drag gesture (on hover)
-              so the drag session starts synchronously.
-            - **403 / "Something went wrong" fixed for good.** Splice's Cloudflare
-              protection escalated to a managed challenge that blocks every native HTTP
-              client. Requests are now routed through a hidden webview (WebView2 on
-              Windows, WebKit on macOS/Linux) so they originate from a real browser
-              engine and are never challenged.
-              (upstream issue [#30](https://github.com/Robert-K/splicerr/issues/30))
+            ### ✨ New — Collections
+            - **Local collections.** Create your own collections and add sounds to
+              them, all stored locally — no Splice account needed. A new sidebar lists
+              your collections with sample counts.
+            - **Likes.** A built-in Likes collection with a per-row heart button to
+              quickly save sounds.
+            - **Add / organize from each row.** A three-dots menu on every sample lets
+              you add it to any collection (or create a new one from a modal) and remove
+              it again.
+            - **Tag filtering inside collections.** Each collection shows a tag cloud
+              aggregated from its sounds; click tags to filter a mixed collection down
+              (e.g. just the drums).
+            - **Manage collections.** Rename via an Edit dialog and delete with a
+              confirmation prompt.
+            - **Settings moved into the sidebar**, plus an **Open DevTools** button for
+              troubleshooting.
 
-            ### ✨ New
+            ### 🧰 Also included from previous releases
             - **Transpose** — shift samples by key or by semitones, tempo-preserving,
               applied to both preview playback and exported WAV.
+            - Drag-and-drop crash fix on macOS Sequoia and the Cloudflare 403 fix
+              (requests routed through a real browser engine).
 
             ### 📦 Downloads
             - **Windows** — `.exe` (installer) or `.msi`
