@@ -1,7 +1,5 @@
 <script lang="ts">
     import * as Dialog from "$lib/components/ui/dialog"
-    import Settings from "lucide-svelte/icons/settings"
-    import { buttonVariants } from "$lib/components/ui/button/index.js"
     import { cn } from "$lib/utils"
     import ExternalLink from "$lib/components/external-link.svelte"
     import Input from "$lib/components/ui/input/input.svelte"
@@ -21,17 +19,13 @@
     import { open as openDialog } from "@tauri-apps/plugin-dialog"
     import ThemeSelect from "./theme-select.svelte"
     import Switch from "$lib/components/ui/switch/switch.svelte"
+    import Terminal from "lucide-svelte/icons/terminal"
+    import { invoke } from "@tauri-apps/api/core"
 
     let flashbangAudio = $state<HTMLAudioElement>(null!)
 </script>
 
 <Dialog.Root bind:open={settingsDialog.open}>
-    <Dialog.Trigger
-        class={cn(
-            buttonVariants({ variant: "outline", size: "icon" }),
-            "text-muted-foreground flex-shrink-0"
-        )}><Settings /></Dialog.Trigger
-    >
     <Dialog.Content>
         <Dialog.Header>
             <Dialog.Title>Settings</Dialog.Title>
@@ -161,6 +155,20 @@
                         {config.repeat_audio ? "Enabled" : "Disabled"}
                     </Label>
                 </div>
+            </div>
+            <div class="flex flex-col gap-2">
+                <Label>Developer</Label>
+                <p class="text-muted-foreground text-sm">
+                    Open the webview developer tools (console, network, etc.).
+                </p>
+                <Button
+                    variant="outline"
+                    class="self-start gap-2"
+                    onclick={() => invoke("open_devtools")}
+                >
+                    <Terminal size="16" />
+                    Open DevTools
+                </Button>
             </div>
         </div>
         <Dialog.Footer>

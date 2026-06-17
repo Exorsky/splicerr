@@ -100,6 +100,16 @@ export type AutocompleteSuggestion = {
     __typename: string
 }
 
+export type AssetFilesByUuidsResponse = {
+    data: {
+        assetFiles: Array<{
+            assetUuid: string
+            files: Array<AssetFile>
+            __typename: string
+        }>
+    }
+}
+
 export type SortOrder = "ASC" | "DESC"
 
 export type AssetSortType =

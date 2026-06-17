@@ -126,6 +126,17 @@ fn splice_response(app: tauri::AppHandle, id: u64, text: String) {
     }
 }
 
+/// Opens the webview devtools for the main window. The `devtools` Cargo feature
+/// keeps `open_devtools` available in release builds too, not just debug.
+#[tauri::command]
+fn open_devtools(app: tauri::AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "main window not found".to_string())?;
+    window.open_devtools();
+    Ok(())
+}
+
 /// Called once by the bridge webview after it has loaded and wired up its listener.
 #[tauri::command]
 fn splice_bridge_ready(app: tauri::AppHandle) {
@@ -153,7 +164,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             splice_graphql,
             splice_response,
-            splice_bridge_ready
+            splice_bridge_ready,
+            open_devtools
         ])
         .setup(|app| {
             // Hidden webview parked on the Splice GraphQL host. Navigating here

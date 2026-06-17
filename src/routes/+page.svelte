@@ -7,6 +7,7 @@
     import Search from "lucide-svelte/icons/search"
     import Smile from "lucide-svelte/icons/smile"
     import Ghost from "lucide-svelte/icons/ghost"
+    import Library from "lucide-svelte/icons/library"
     import Shuffle from "lucide-svelte/icons/shuffle"
     import Button from "$lib/components/ui/button/button.svelte"
     import ProgressLoading from "$lib/components/progress-loading.svelte"
@@ -29,8 +30,78 @@
         DEFAULT_SORT,
         randomSeed,
     } from "$lib/shared/store.svelte"
-    import SettingsDialog from "$lib/components/settings-dialog.svelte"
     import KeySelect from "$lib/components/key-select.svelte"
+    import CollectionsSidebar from "$lib/components/collections-sidebar.svelte"
+    import { viewStore, toggleCollectionTag } from "$lib/shared/view.svelte"
+    import {
+        collectionSamples,
+        findCollection,
+        removeSample,
+    } from "$lib/shared/collections.svelte"
+
+    // Single source of truth for the active view. The header, list, empty state
+    // and row actions all key off this one derived, so they can never disagree
+    // mid-switch (which used to flash "Empty collection" over Browse). Falls back
+    // to browse if the active collection was deleted.
+    const view = $derived.by(() => {
+        if (viewStore.mode === "collection" && viewStore.collectionUuid) {
+            const collection = findCollection(viewStore.collectionUuid)
+            if (collection) return { kind: "collection" as const, collection }
+        }
+        return { kind: "browse" as const }
+    })
+
+    const activeCollection = $derived(
+        view.kind === "collection" ? view.collection : null
+    )
+
+    // The samples shown in the main list: search results in browse mode,
+    // the collection's stored samples (optionally tag-filtered) in collection mode.
+    const shownSamples = $derived.by(() => {
+        if (view.kind !== "collection") return dataStore.sampleAssets
+        const samples = collectionSamples(view.collection.uuid)
+        if (viewStore.tagFilter.length == 0) return samples
+        return samples.filter((sample) =>
+            viewStore.tagFilter.every((tagUuid) =>
+                sample.tags.some((tag) => tag.uuid == tagUuid)
+            )
+        )
+    })
+
+    // Aggregated tag counts across the open collection's samples, most common first.
+    const collectionTagSummary = $derived.by(() => {
+        if (view.kind !== "collection") return []
+        const counts = new Map<
+            string,
+            { uuid: string; label: string; count: number }
+        >()
+        for (const sample of collectionSamples(view.collection.uuid)) {
+            for (const tag of sample.tags) {
+                const entry = counts.get(tag.uuid) ?? {
+                    uuid: tag.uuid,
+                    label: tag.label,
+                    count: 0,
+                }
+                entry.count++
+                counts.set(tag.uuid, entry)
+            }
+        }
+        return [...counts.values()].sort((a, b) => b.count - a.count)
+    })
+
+    // Which empty-state to show, derived from the same source as the list so the
+    // message can never disagree with what's actually rendered.
+    const emptyStateKind = $derived.by(() => {
+        if (shownSamples.length > 0) return null
+        if (view.kind === "collection") {
+            return viewStore.tagFilter.length > 0
+                ? "no-tag-match"
+                : "empty-collection"
+        }
+        if (loading.fetchError) return "error"
+        if (loading.beforeFirstLoad) return "welcome"
+        return "no-results"
+    })
 
     // TODO: Taxonomy comboboxes (maybe just pass all tags to each)
     // const instrumentTags = $derived(() =>
@@ -54,10 +125,13 @@
     })
 
     storeCallbacks.onbeforedataupdate = () => {
-        viewportRef.scrollTo({ top: 0, behavior: "smooth" })
+        // The tag drawer/viewport only exist in browse mode; a fetch can resolve
+        // while a collection is open, so bail out if they're not mounted.
+        viewportRef?.scrollTo({ top: 0, behavior: "smooth" })
     }
 
     storeCallbacks.onbeforetagsupdate = () => {
+        if (!tagsDrawerRef || !tagsContainerRef) return
         tagsDrawerRef.style.height = `${tagsContainerRef.offsetHeight}px`
     }
 
@@ -69,12 +143,13 @@
     let searchInputRef = $state<HTMLInputElement>(null!)
 
     const selectedSampleIndex = $derived(
-        dataStore.sampleAssets.findIndex(
+        shownSamples.findIndex(
             (sampleAsset) => sampleAsset.uuid == globalAudio.currentAsset?.uuid
         )
     )
 
     const updateSort = (newSort: AssetSortType) => {
+        if (viewStore.mode !== "browse") return
         if (queryStore.sort == newSort) {
             if (queryStore.order == "DESC") {
                 queryStore.order = "ASC"
@@ -89,11 +164,11 @@
     }
 
     const gotoPrev = () => {
-        const currentIndex = dataStore.sampleAssets.findIndex(
+        const currentIndex = shownSamples.findIndex(
             (asset) => asset.uuid === globalAudio.currentAsset?.uuid
         )
-        if (currentIndex > -1) {
-            const sampleAsset = dataStore.sampleAssets[currentIndex - 1]
+        if (currentIndex > 0) {
+            const sampleAsset = shownSamples[currentIndex - 1]
             globalAudio.playSampleAsset(sampleAsset)
             const entryEl = document.getElementById(
                 `sample-list-entry-${sampleAsset.uuid}`
@@ -104,14 +179,11 @@
     }
 
     const gotoNext = () => {
-        const currentIndex = dataStore.sampleAssets.findIndex(
+        const currentIndex = shownSamples.findIndex(
             (asset) => asset.uuid === globalAudio.currentAsset?.uuid
         )
-        if (
-            currentIndex !== -1 &&
-            currentIndex + 1 < dataStore.sampleAssets.length
-        ) {
-            const sampleAsset = dataStore.sampleAssets[currentIndex + 1]
+        if (currentIndex !== -1 && currentIndex + 1 < shownSamples.length) {
+            const sampleAsset = shownSamples[currentIndex + 1]
             globalAudio.playSampleAsset(sampleAsset)
             const entryEl = document.getElementById(
                 `sample-list-entry-${sampleAsset.uuid}`
@@ -131,6 +203,7 @@
     onMount(() => {
         viewportRef.addEventListener("scroll", () => {
             if (
+                viewStore.mode === "browse" &&
                 !loading.assets &&
                 viewportRef.scrollTop + viewportRef.clientHeight >=
                     viewportRef.scrollHeight - viewportRef.clientHeight
@@ -147,33 +220,42 @@
     })
 </script>
 
-<main class="flex flex-col size-full">
+<div class="flex flex-col size-full">
+    <div class="flex flex-grow min-h-0">
+        <CollectionsSidebar />
+        <main class="flex flex-col flex-grow min-w-0">
     <div class="flex flex-col p-4 gap-4">
         <div class="flex gap-4 justify-between items-center">
-            <SettingsDialog />
-            <SearchInput
-                bind:value={queryStore.query}
-                onsubmit={fetchAssets}
-                class="flex-grow"
-                bind:inputRef={searchInputRef}
-            />
-            <KeySelect
-                bind:key={queryStore.key}
-                bind:chord_type={queryStore.chord_type}
-                onselect={fetchAssets}
-            />
-            <BpmSelect
-                bind:bpm={queryStore.bpm}
-                bind:min_bpm={queryStore.min_bpm}
-                bind:max_bpm={queryStore.max_bpm}
-                onsubmit={fetchAssets}
-            />
-            <AssetCategorySelect
-                bind:asset_category_slug={queryStore.asset_category_slug}
-                onselect={fetchAssets}
-            />
+            {#if view.kind === "browse"}
+                <SearchInput
+                    bind:value={queryStore.query}
+                    onsubmit={fetchAssets}
+                    class="flex-grow"
+                    bind:inputRef={searchInputRef}
+                />
+                <KeySelect
+                    bind:key={queryStore.key}
+                    bind:chord_type={queryStore.chord_type}
+                    onselect={fetchAssets}
+                />
+                <BpmSelect
+                    bind:bpm={queryStore.bpm}
+                    bind:min_bpm={queryStore.min_bpm}
+                    bind:max_bpm={queryStore.max_bpm}
+                    onsubmit={fetchAssets}
+                />
+                <AssetCategorySelect
+                    bind:asset_category_slug={queryStore.asset_category_slug}
+                    onselect={fetchAssets}
+                />
+            {:else}
+                <h2 class="flex-grow text-xl font-bold truncate">
+                    {activeCollection?.name ?? "Collection"}
+                </h2>
+            {/if}
         </div>
 
+        {#if view.kind === "browse"}
         <div
             class="transition-[height] ease-in-out overflow-clip"
             bind:this={tagsDrawerRef}
@@ -265,6 +347,26 @@
                 order={queryStore.order}
             />
         </div>
+        {:else}
+        <div class="flex flex-col gap-2">
+            {#if collectionTagSummary.length > 0}
+                <div class="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                    {#each collectionTagSummary as tag (tag.uuid)}
+                        {@const active = viewStore.tagFilter.includes(tag.uuid)}
+                        <TagBadge
+                            label={tag.label}
+                            count={tag.count}
+                            {active}
+                            onclick={() => toggleCollectionTag(tag.uuid)}
+                        />
+                    {/each}
+                </div>
+            {/if}
+            <div class="text-muted-foreground text-xs">
+                {shownSamples.length.toLocaleString()} sounds
+            </div>
+        </div>
+        {/if}
 
         <div class="flex flex-col gap-2">
             <Separator />
@@ -345,15 +447,25 @@
         }}
     >
         <div class="flex flex-col py-2 size-full">
-            {#each dataStore.sampleAssets as sampleAsset, index}
+            {#each shownSamples as sampleAsset, index (sampleAsset.uuid)}
                 {@const selected =
                     globalAudio.currentAsset?.uuid == sampleAsset.uuid}
                 <SampleListEntry
                     {sampleAsset}
                     {selected}
                     playing={selected && !globalAudio.paused}
+                    collectionUuid={view.kind === "collection"
+                        ? view.collection.uuid
+                        : null}
+                    onremove={() => {
+                        if (view.kind === "collection")
+                            removeSample(
+                                view.collection.uuid,
+                                sampleAsset.uuid
+                            )
+                    }}
                 />
-                {#if index < dataStore.sampleAssets.length - 1}
+                {#if index < shownSamples.length - 1}
                     <div
                         class={selected || index + 1 == selectedSampleIndex
                             ? "px-2"
@@ -366,12 +478,22 @@
                 <div
                     class="flex flex-col gap-2 justify-center items-center size-full text-muted-foreground"
                 >
-                    {#if loading.fetchError}
+                    {#if emptyStateKind === "no-tag-match"}
+                        <Search size="48" />
+                        <p class="font-bold text-xl">No matches</p>
+                        <p class="text-sm">No sounds match the selected tags.</p>
+                    {:else if emptyStateKind === "empty-collection"}
+                        <Library size="48" />
+                        <p class="font-bold text-xl">Empty collection</p>
+                        <p class="text-sm">
+                            Add sounds from Browse using the menu on each row.
+                        </p>
+                    {:else if emptyStateKind === "error"}
                         <Ghost size="48" />
                         <p class="font-bold text-xl">Something went wrong :/</p>
                         <p class="text-sm">Couldn't load any samples</p>
                         <Button onclick={fetchAssets}>Retry</Button>
-                    {:else if loading.beforeFirstLoad}
+                    {:else if emptyStateKind === "welcome"}
                         <Smile size="48" />
                         <p class="font-bold text-xl">Hey there!</p>
                         <p class="text-sm">Make some cool music, will ya?</p>
@@ -382,7 +504,7 @@
                     {/if}
                 </div>
             {/each}
-            {#if loading.fetchError && dataStore.sampleAssets.length > 0}
+            {#if view.kind === "browse" && loading.fetchError && dataStore.sampleAssets.length > 0}
                 <div
                     class="flex flex-col py-8 gap-2 justify-center items-center text-muted-foreground"
                 >
@@ -394,5 +516,7 @@
             {/if}
         </div>
     </ScrollArea>
+        </main>
+    </div>
     <AudioPlayer onprev={gotoPrev} onnext={gotoNext} />
-</main>
+</div>

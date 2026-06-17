@@ -1,6 +1,6 @@
 {
   "name": "splicerr",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "",
   "type": "module",
   "scripts": {
@@ -22,6 +22,7 @@
     "@tauri-apps/plugin-window-state": "~2.4.0",
     "@types/node-wav": "^0.0.3",
     "buffer": "^6.0.3",
+    "fflate": "^0.8.3",
     "mode-watcher": "^0.5.1",
     "node-wav": "^0.0.2",
     "pako": "^2.1.0",

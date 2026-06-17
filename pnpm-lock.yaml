@@ -35,6 +35,9 @@ importers:
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       mode-watcher:
         specifier: ^0.5.1
         version: 0.5.1(svelte@5.19.3)
@@ -761,6 +764,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
 
   fill-range@7.1.1:
     resolution: {integrity: sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==}
@@ -1851,6 +1857,8 @@ snapshots:
       reusify: 1.0.4
 
   fdir@6.4.3: {}
+
+  fflate@0.8.3: {}
 
   fill-range@7.1.1:
     dependencies:
