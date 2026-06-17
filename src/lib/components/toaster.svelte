@@ -47,9 +47,18 @@
             <div class="min-w-0 flex-grow">
                 <p class="text-base font-semibold">{t.title}</p>
                 {#if t.description}
-                    <p class="text-sm text-muted-foreground break-all mt-0.5">
-                        {t.description}
-                    </p>
+                    {#if t.onClick}
+                        <button
+                            class="text-sm text-left text-muted-foreground break-all mt-0.5 underline-offset-2 hover:underline hover:text-foreground"
+                            onclick={() => t.onClick?.()}
+                        >
+                            {t.description}
+                        </button>
+                    {:else}
+                        <p class="text-sm text-muted-foreground break-all mt-0.5">
+                            {t.description}
+                        </p>
+                    {/if}
                 {/if}
             </div>
             <button

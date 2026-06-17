@@ -32,6 +32,7 @@
         exportState,
     } from "$lib/shared/export.svelte"
     import { toast } from "$lib/shared/toasts.svelte"
+    import { revealItemInDir } from "@tauri-apps/plugin-opener"
     import { openBrowse, openCollection, viewStore } from "$lib/shared/view.svelte"
 
     // Collection being edited in the Edit dialog, if any
@@ -80,6 +81,7 @@
                     title: "Collection exported",
                     description: path,
                     variant: "success",
+                    onClick: () => revealItemInDir(path),
                 })
             }
         } catch (e) {
