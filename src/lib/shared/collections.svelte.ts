@@ -260,6 +260,59 @@ export async function refreshCollectionUrls(colUuid: string) {
     }
 }
 
+/**
+ * Refreshes the signed urls of a single sample on demand — used when a presigned
+ * url expires mid-session (a 403 while playing) so we can retry without making the
+ * user leave and re-open the collection. Mutates the passed sample's files in place
+ * and returns whether any url was refreshed. Same pack-search approach as
+ * refreshCollectionUrls (the sample's own legacy uuid can't be queried directly).
+ */
+export async function refreshSampleUrl(sample: SampleAsset): Promise<boolean> {
+    const packUuid = sample?.parents?.items?.[0]?.uuid
+    if (!packUuid) return false
+
+    let page = 1
+    let totalPages = 1
+    while (page <= totalPages) {
+        const response = (await querySplice({
+            ...SamplesSearch,
+            variables: {
+                ...SamplesSearch.variables,
+                parent_asset_uuid: packUuid,
+                sort: "popularity",
+                random_seed: null,
+                limit: 50,
+                page,
+            },
+        })) as SamplesSearchResponse | null
+
+        const result = response?.data?.assetsSearch
+        if (!result) return false
+        totalPages = result.pagination_metadata?.totalPages ?? page
+
+        const fresh = result.items.find((i) => i.uuid == sample.uuid)
+        if (fresh) {
+            let refreshed = false
+            for (const freshFile of fresh.files ?? []) {
+                const existing = sample.files.find(
+                    (f) => f.uuid == freshFile.uuid
+                )
+                if (existing && freshFile.url) {
+                    existing.url = freshFile.url
+                    refreshed = true
+                }
+            }
+            if (refreshed) {
+                saveCollections()
+                console.info("🔗 Refreshed sample url", sample.name)
+            }
+            return refreshed
+        }
+        page++
+    }
+    return false
+}
+
 /** Samples of a collection in their stored order. */
 export function collectionSamples(colUuid: string): SampleAsset[] {
     const collection = findCollection(colUuid)

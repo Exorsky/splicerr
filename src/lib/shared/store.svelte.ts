@@ -1,4 +1,5 @@
 import { querySplice, SamplesSearch } from "$lib/splice/api"
+import { refreshSampleUrl } from "./collections.svelte"
 import { descrambleSample } from "$lib/splice/descrambler"
 import type {
     AssetCategorySlug,
@@ -162,7 +163,15 @@ export async function getDescrambledSampleURL(sampleAsset: SampleAsset) {
     // bails out early. This bites samples in a collection whose cached CDN url has
     // expired and couldn't be refreshed (see refreshCollectionUrls).
     try {
-        const response = await fetch(sampleAsset.files[0].url)
+        let response = await fetch(sampleAsset.files[0].url)
+        if (!response.ok) {
+            // The presigned url likely expired mid-session. Re-resolve it from the
+            // parent pack and retry once before giving up.
+            const refreshed = await refreshSampleUrl(sampleAsset)
+            if (refreshed) {
+                response = await fetch(sampleAsset.files[0].url)
+            }
+        }
         if (!response.ok) {
             throw new Error(
                 `Sample fetch failed (${response.status} ${response.statusText}) — the CDN url is likely expired`
