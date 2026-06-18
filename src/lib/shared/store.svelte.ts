@@ -157,26 +157,37 @@ export async function getDescrambledSampleURL(sampleAsset: SampleAsset) {
     loading.samples.add(sampleAsset.uuid)
     loading.samplesCount++
 
-    const response = await fetch(sampleAsset.files[0].url)
+    // A failing fetch/descramble must still clear the loading flag, otherwise the
+    // sample stays stuck "loading" forever (endless spinner) and every later play
+    // bails out early. This bites samples in a collection whose cached CDN url has
+    // expired and couldn't be refreshed (see refreshCollectionUrls).
+    try {
+        const response = await fetch(sampleAsset.files[0].url)
+        if (!response.ok) {
+            throw new Error(
+                `Sample fetch failed (${response.status} ${response.statusText}) — the CDN url is likely expired`
+            )
+        }
 
-    const data = new Uint8Array(await response.arrayBuffer())
+        const data = new Uint8Array(await response.arrayBuffer())
 
-    const descrambledData = descrambleSample(data)
+        const descrambledData = descrambleSample(data)
 
-    const blob = new Blob([descrambledData], {
-        type: "audio/mp3",
-    })
+        const blob = new Blob([descrambledData], {
+            type: "audio/mp3",
+        })
 
-    const blobURL = window.URL.createObjectURL(blob)
+        const blobURL = window.URL.createObjectURL(blob)
 
-    dataStore.descrambledSamples.set(sampleAsset.uuid, blobURL)
+        dataStore.descrambledSamples.set(sampleAsset.uuid, blobURL)
 
-    loading.samples.delete(sampleAsset.uuid)
-    loading.samplesCount--
+        console.info("🔗 Created descrambled sample blob")
 
-    console.info("🔗 Created descrambled sample blob")
-
-    return blobURL
+        return blobURL
+    } finally {
+        loading.samples.delete(sampleAsset.uuid)
+        loading.samplesCount--
+    }
 }
 
 export function freeDescrambledSample(uuid: string) {

@@ -8,10 +8,10 @@ import {
 } from "@tauri-apps/plugin-fs"
 import { appConfigDir } from "@tauri-apps/api/path"
 import type {
-    AssetFilesByUuidsResponse,
     SampleAsset,
+    SamplesSearchResponse,
 } from "$lib/splice/types"
-import { AssetFilesByUuids, querySplice } from "$lib/splice/api"
+import { SamplesSearch, querySplice } from "$lib/splice/api"
 
 const COLLECTIONS_FILE_NAME = "collections.json"
 
@@ -182,35 +182,75 @@ export function removeSample(colUuid: string, sampleUuid: string) {
 
 /**
  * Re-resolves the signed CDN urls for every sample in a collection. The
- * `files[].url`s cached in collections.json expire, so before playing/dragging
- * from a collection we fetch fresh files by uuid and merge the new urls into
- * the cached files, matching by stable file uuid (the array order — audio at
- * files[0], waveform at files[1] — must be preserved for playback/waveform).
+ * `files[].url`s cached in collections.json are presigned S3 links that expire,
+ * so before playing/dragging from a collection we fetch fresh ones.
+ *
+ * We can't refresh by sample uuid: legacy samples expose a 64-char content hash
+ * as their `uuid`, which the catalog's `assetFiles(assetUuids:)` rejects ("invalid
+ * UUID length: 64"). Instead we re-run the pack search — the parent pack carries a
+ * real GUID — and copy the fresh urls onto the cached samples, matched by uuid and
+ * by stable file uuid (array order — audio at files[0], waveform at files[1] — is
+ * preserved for playback/waveform).
  */
 export async function refreshCollectionUrls(colUuid: string) {
     const collection = findCollection(colUuid)
     if (!collection || collection.sample_uuids.length == 0) return
 
-    const response = (await querySplice(AssetFilesByUuids, {
-        assetUuids: [...collection.sample_uuids],
-    })) as AssetFilesByUuidsResponse | null
-
-    const lists = response?.data?.assetFiles
-    if (!lists) {
-        console.warn("⚠️ Could not refresh collection urls")
-        return
+    // Group the samples by their parent pack so we can refresh a whole pack at once.
+    const byPack = new Map<string, Set<string>>()
+    for (const sampleUuid of collection.sample_uuids) {
+        const packUuid =
+            collection.samples[sampleUuid]?.parents?.items?.[0]?.uuid
+        if (!packUuid) continue
+        if (!byPack.has(packUuid)) byPack.set(packUuid, new Set())
+        byPack.get(packUuid)!.add(sampleUuid)
     }
 
     let refreshed = false
-    for (const list of lists) {
-        const sample = collection.samples[list.assetUuid]
-        if (!sample) continue
-        for (const freshFile of list.files ?? []) {
-            const existing = sample.files.find((f) => f.uuid == freshFile.uuid)
-            if (existing && freshFile.url) {
-                existing.url = freshFile.url
-                refreshed = true
+    for (const [packUuid, wanted] of byPack) {
+        const remaining = new Set(wanted)
+        let page = 1
+        let totalPages = 1
+        // Page through the pack until we've matched every wanted sample (or run
+        // out of pages). A stable sort keeps pagination consistent across requests.
+        while (remaining.size > 0 && page <= totalPages) {
+            const response = (await querySplice({
+                ...SamplesSearch,
+                variables: {
+                    ...SamplesSearch.variables,
+                    parent_asset_uuid: packUuid,
+                    sort: "popularity",
+                    random_seed: null,
+                    limit: 50,
+                    page,
+                },
+            })) as SamplesSearchResponse | null
+
+            const result = response?.data?.assetsSearch
+            if (!result) {
+                console.warn(
+                    "⚠️ Could not refresh collection urls for pack",
+                    packUuid
+                )
+                break
             }
+            totalPages = result.pagination_metadata?.totalPages ?? page
+
+            for (const fresh of result.items) {
+                if (!remaining.has(fresh.uuid)) continue
+                const sample = collection.samples[fresh.uuid]
+                for (const freshFile of fresh.files ?? []) {
+                    const existing = sample?.files.find(
+                        (f) => f.uuid == freshFile.uuid
+                    )
+                    if (existing && freshFile.url) {
+                        existing.url = freshFile.url
+                        refreshed = true
+                    }
+                }
+                remaining.delete(fresh.uuid)
+            }
+            page++
         }
     }
 
