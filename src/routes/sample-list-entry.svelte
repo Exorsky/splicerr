@@ -82,19 +82,9 @@
         return minutes + ":" + (seconds < 10 ? "0" : "") + seconds
     }
 
-    // Prepare the sample for dragging ahead of the gesture (debounced on hover,
-    // and immediately on press) so the native drag can start synchronously —
-    // doing the descramble/write inside dragstart crashes on macOS.
-    let hoverTimer: ReturnType<typeof setTimeout> | null = null
-    const startHoverPrefetch = () => {
-        hoverTimer = setTimeout(() => prefetchSampleDrag(sampleAsset), 150)
-    }
-    const cancelHoverPrefetch = () => {
-        if (hoverTimer) {
-            clearTimeout(hoverTimer)
-            hoverTimer = null
-        }
-    }
+    // Prepare the sample for dragging on press (not hover) so the native drag can
+    // start synchronously — doing the descramble/write inside dragstart crashes on
+    // macOS.
 </script>
 
 <button
@@ -106,8 +96,6 @@
     id={`sample-list-entry-${sampleAsset.uuid}`}
     draggable="true"
     tabindex="-1"
-    onpointerenter={startHoverPrefetch}
-    onpointerleave={cancelHoverPrefetch}
     onmousedown={() => {
         globalAudio.selectSampleAsset(sampleAsset, false)
         prefetchSampleDrag(sampleAsset)

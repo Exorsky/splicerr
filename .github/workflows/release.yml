@@ -62,39 +62,22 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          releaseName: 'Splicerr v__VERSION__ — Collections'
+          releaseName: 'Splicerr v__VERSION__'
           releaseBody: |
-            ## Splicerr v1.0.12 — community fork
+            ## Splicerr v1.0.13 — community fork
 
             Temporary fork of [Robert-K/splicerr](https://github.com/Robert-K/splicerr)
             that restores functionality and adds bonus features.
 
-            ### ✨ New — Collections
-            - **Local collections.** Create your own collections and add sounds to
-              them, all stored locally — no Splice account needed. A new sidebar lists
-              your collections with sample counts.
-            - **Likes.** A built-in Likes collection with a per-row heart button to
-              quickly save sounds.
-            - **Add / organize from each row.** A three-dots menu on every sample lets
-              you add it to any collection (or create a new one from a modal) and remove
-              it again.
-            - **Tag filtering inside collections.** Each collection shows a tag cloud
-              aggregated from its sounds; click tags to filter a mixed collection down
-              (e.g. just the drums).
-            - **Manage collections.** Rename via an Edit dialog and delete with a
-              confirmation prompt.
-            - **Export to .zip.** Export a whole collection as a flat zip of WAV
-              files, then click the path in the notification to reveal it in your
-              file manager.
-            - **Toast notifications.** Friendly confirmations for create / rename /
-              delete / export actions.
-            - **Settings moved into the sidebar**, plus an **Open DevTools** button for
-              troubleshooting.
+            ### 🐛 Fixes
+            - **No more downloading samples on hover.** Samples were being prepared
+              (descrambled + written to disk) as soon as you hovered a row, showing a
+              spinner. Preparation now happens only on press, so a sample is downloaded
+              just when you play or drag it.
 
-            > Collections live locally in your user data folder, so they're kept across
-            > app updates.
-
-            ### 🧰 Also included from previous releases
+            ### 🧰 Included from previous releases
+            - **Collections** — create local collections, Likes, tag filtering, export
+              to `.zip`, and toast notifications.
             - **Transpose** — shift samples by key or by semitones, tempo-preserving,
               applied to both preview playback and exported WAV.
             - Drag-and-drop crash fix on macOS Sequoia and the Cloudflare 403 fix
