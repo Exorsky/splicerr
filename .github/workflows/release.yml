@@ -64,18 +64,26 @@ jobs:
           tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'Splicerr v__VERSION__'
           releaseBody: |
-            ## Splicerr v1.0.13 — community fork
+            ## Splicerr v1.0.14 — DAW Bridge
 
             Temporary fork of [Robert-K/splicerr](https://github.com/Robert-K/splicerr)
-            that restores functionality and adds bonus features.
+            that restores functionality and adds DAW bridge sync.
 
-            ### 🐛 Fixes
-            - **No more downloading samples on hover.** Samples were being prepared
-              (descrambled + written to disk) as soon as you hovered a row, showing a
-              spinner. Preparation now happens only on press, so a sample is downloaded
-              just when you play or drag it.
+            ### New
+            - **Splicerr Bridge plugin** for DAW sync, bundled as AU and VST3.
+            - **Bridge installer in Settings** with Install/Reinstall/Uninstall actions.
+            - DAW transport sync for play/stop, BPM, bar position, loops, and one-shot triggers.
+            - DAW-mode drag-and-drop for the currently selected sample stretched to the host BPM.
 
-            ### 🧰 Included from previous releases
+            ### Fixes
+            - The app preview is muted automatically while connected to the DAW.
+            - Bridge audio now renders directly inside the DAW plugin.
+            - Waveform and player progress now follow the plugin's real sample cursor.
+            - One-shot waveform progress now resets between bar triggers instead of looking permanently active.
+            - Closing the macOS window now hides it and reopening Splicerr brings the main window back.
+            - Bridge installer labels are now in English.
+
+            ### Included from previous releases
             - **Collections** — create local collections, Likes, tag filtering, export
               to `.zip`, and toast notifications.
             - **Transpose** — shift samples by key or by semitones, tempo-preserving,

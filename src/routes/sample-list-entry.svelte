@@ -15,7 +15,8 @@
     import { cn, formatKey } from "$lib/utils"
     import { loading } from "$lib/shared/loading.svelte"
     import { assetIcons } from "$lib/shared/icons.svelte"
-    import {handleSampleDrag, prefetchSampleDrag} from "$lib/shared/drag.svelte"
+    import { handleSampleDrag, prefetchSampleDrag } from "$lib/shared/drag.svelte"
+    import { dawSync } from "$lib/shared/daw-sync.svelte"
     import * as Popover from "$lib/components/ui/popover"
     import Plus from "lucide-svelte/icons/plus"
     import Check from "lucide-svelte/icons/check"
@@ -75,6 +76,19 @@
 
     const pack = $derived(sampleAsset.parents.items[0])
     const name = $derived(sampleAsset.name.split("/").slice(-1))
+    const waveformProgress = $derived.by(() => {
+        if (!selected) return 0
+
+        if (dawSync.connected) {
+            const progress =
+                dawSync.visualDuration > 0
+                    ? dawSync.visualCurrentTime / dawSync.visualDuration
+                    : 0
+            return Math.min(1, Math.max(0, progress))
+        }
+
+        return globalAudio.progress() || 0
+    })
 
     const millisToMinutesAndSeconds = (millis: number) => {
         var minutes = Math.floor(millis / 60000)
@@ -171,8 +185,13 @@
     </div>
     <Waveform
         src={sampleAsset.files[1].url}
-        progress={selected ? globalAudio.progress() : 0}
+        progress={waveformProgress}
         onseek={(progress) => {
+            if (dawSync.connected) {
+                globalAudio.selectSampleAsset(sampleAsset, false)
+                return
+            }
+
             const startTime = progress * (sampleAsset.duration / 1000)
             globalAudio.playSampleAsset(sampleAsset, startTime)
         }}

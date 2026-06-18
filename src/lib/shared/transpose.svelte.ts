@@ -159,3 +159,64 @@ export function pitchShiftAudioBuffer(
 
     return output
 }
+
+/**
+ * Tempo-stretches an AudioBuffer while preserving pitch. `tempoRatio` > 1 makes
+ * the output shorter/faster; < 1 makes it longer/slower.
+ */
+export function tempoStretchAudioBuffer(
+    buffer: AudioBuffer,
+    tempoRatio: number
+): AudioBuffer {
+    if (!Number.isFinite(tempoRatio) || Math.abs(tempoRatio - 1) < 0.001) {
+        return buffer
+    }
+
+    const channelCount = buffer.numberOfChannels
+    const sampleRate = buffer.sampleRate
+    const originalLength = buffer.length
+    const targetLength = Math.max(1, Math.round(originalLength / tempoRatio))
+
+    const padFrames = Math.ceil(sampleRate * 0.5)
+    const padded = new AudioBuffer({
+        length: originalLength + padFrames,
+        numberOfChannels: channelCount,
+        sampleRate,
+    })
+    for (let c = 0; c < channelCount; c++) {
+        padded.copyToChannel(buffer.getChannelData(c), c)
+    }
+
+    const soundtouch = new SoundTouch()
+    soundtouch.tempo = tempoRatio
+
+    const source = new WebAudioBufferSource(padded)
+    const filter = new SimpleFilter(source, soundtouch)
+
+    const BLOCK = 4096
+    const interleaved = new Float32Array(BLOCK * 2)
+    const left: number[] = []
+    const right: number[] = []
+
+    let extracted: number
+    while ((extracted = filter.extract(interleaved, BLOCK)) > 0) {
+        for (let i = 0; i < extracted; i++) {
+            left.push(interleaved[i * 2])
+            right.push(interleaved[i * 2 + 1])
+        }
+        if (left.length >= targetLength + padFrames) break
+    }
+
+    const output = new AudioBuffer({
+        length: targetLength,
+        numberOfChannels: channelCount,
+        sampleRate,
+    })
+    const take = Math.min(left.length, targetLength)
+    output.copyToChannel(Float32Array.from(left.slice(0, take)), 0)
+    if (channelCount > 1) {
+        output.copyToChannel(Float32Array.from(right.slice(0, take)), 1)
+    }
+
+    return output
+}

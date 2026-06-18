@@ -9,6 +9,7 @@
         settingsDialog,
     } from "$lib/shared/config.svelte"
     import { loadCollections } from "$lib/shared/collections.svelte"
+    import { startDawSync, stopDawSync } from "$lib/shared/daw-sync.svelte"
     import Toaster from "$lib/components/toaster.svelte"
     import { onMount } from "svelte"
 
@@ -27,6 +28,8 @@
             }
         })
         loadCollections()
+        startDawSync()
+        return () => stopDawSync()
     })
 </script>
 

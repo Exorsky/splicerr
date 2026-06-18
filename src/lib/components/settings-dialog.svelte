@@ -20,9 +20,58 @@
     import ThemeSelect from "./theme-select.svelte"
     import Switch from "$lib/components/ui/switch/switch.svelte"
     import Terminal from "lucide-svelte/icons/terminal"
+    import Download from "lucide-svelte/icons/download"
+    import LoaderCircle from "lucide-svelte/icons/loader-circle"
+    import Trash2 from "lucide-svelte/icons/trash-2"
     import { invoke } from "@tauri-apps/api/core"
 
     let flashbangAudio = $state<HTMLAudioElement>(null!)
+    let installingBridge = $state(false)
+    let uninstallingBridge = $state(false)
+    let bridgeInstalled = $state<boolean | null>(null)
+    let bridgeInstallStatus = $state<string | null>(null)
+
+    async function refreshBridgeInstallState() {
+        try {
+            bridgeInstalled = await invoke<boolean>("bridge_plugins_installed")
+        } catch (err) {
+            bridgeInstallStatus = String(err)
+        }
+    }
+
+    async function installBridge() {
+        installingBridge = true
+        bridgeInstallStatus = null
+
+        try {
+            bridgeInstallStatus = await invoke<string>("install_bridge_plugins")
+            await refreshBridgeInstallState()
+        } catch (err) {
+            bridgeInstallStatus = String(err)
+        } finally {
+            installingBridge = false
+        }
+    }
+
+    async function uninstallBridge() {
+        uninstallingBridge = true
+        bridgeInstallStatus = null
+
+        try {
+            bridgeInstallStatus = await invoke<string>("uninstall_bridge_plugins")
+            await refreshBridgeInstallState()
+        } catch (err) {
+            bridgeInstallStatus = String(err)
+        } finally {
+            uninstallingBridge = false
+        }
+    }
+
+    $effect(() => {
+        if (settingsDialog.open) {
+            void refreshBridgeInstallState()
+        }
+    })
 </script>
 
 <Dialog.Root bind:open={settingsDialog.open}>
@@ -155,6 +204,47 @@
                         {config.repeat_audio ? "Enabled" : "Disabled"}
                     </Label>
                 </div>
+            </div>
+            <div class="flex flex-col gap-2">
+                <Label>DAW Bridge</Label>
+                <p class="text-muted-foreground text-sm">
+                    Install the bundled AU and VST3 bridge plugins into the system Audio Plug-Ins folders.
+                </p>
+                <div class="flex flex-wrap gap-2">
+                    <Button
+                        variant="outline"
+                        class="gap-2"
+                        disabled={installingBridge || uninstallingBridge}
+                        onclick={installBridge}
+                    >
+                        {#if installingBridge}
+                            <LoaderCircle size="16" class="animate-spin" />
+                        {:else}
+                            <Download size="16" />
+                        {/if}
+                        {bridgeInstalled ? "Reinstall Bridge" : "Install Bridge"}
+                    </Button>
+                    {#if bridgeInstalled}
+                        <Button
+                            variant="outline"
+                            class="gap-2"
+                            disabled={installingBridge || uninstallingBridge}
+                            onclick={uninstallBridge}
+                        >
+                            {#if uninstallingBridge}
+                                <LoaderCircle size="16" class="animate-spin" />
+                            {:else}
+                                <Trash2 size="16" />
+                            {/if}
+                            Uninstall Bridge
+                        </Button>
+                    {/if}
+                </div>
+                {#if bridgeInstallStatus}
+                    <p class="text-muted-foreground text-sm">
+                        {bridgeInstallStatus}
+                    </p>
+                {/if}
             </div>
             <div class="flex flex-col gap-2">
                 <Label>Developer</Label>
