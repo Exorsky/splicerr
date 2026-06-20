@@ -16,7 +16,11 @@
     import { loading } from "$lib/shared/loading.svelte"
     import { assetIcons } from "$lib/shared/icons.svelte"
     import { handleSampleDrag, prefetchSampleDrag } from "$lib/shared/drag.svelte"
-    import { dawSync } from "$lib/shared/daw-sync.svelte"
+    import {
+        dawSync,
+        setDawSyncedPlaybackEnabled,
+        toggleDawSyncedPlayback,
+    } from "$lib/shared/daw-sync.svelte"
     import * as Popover from "$lib/components/ui/popover"
     import Plus from "lucide-svelte/icons/plus"
     import Check from "lucide-svelte/icons/check"
@@ -103,8 +107,8 @@
 
 <button
     class={cn(
-        "flex gap-4 items-center justify-between p-1 rounded-lg focus:outline-none cursor-grab",
-        selected && "bg-muted",
+        "glass-row flex gap-4 items-center justify-between p-2 rounded-2xl focus:outline-none cursor-grab",
+        selected && "glass-row-selected",
         className
     )}
     id={`sample-list-entry-${sampleAsset.uuid}`}
@@ -112,20 +116,34 @@
     tabindex="-1"
     onmousedown={() => {
         globalAudio.selectSampleAsset(sampleAsset, false)
-        prefetchSampleDrag(sampleAsset)
+        if (!dawSync.connected) {
+            prefetchSampleDrag(sampleAsset)
+        }
     }}
     ondragstart={(event) => handleSampleDrag(event, sampleAsset)}
 >
-    <PackPreview {pack} />
+    <PackPreview {pack} size={11} />
     <Button
         variant="ghost"
         bind:ref={playButtonRef}
-        class="group flex-shrink-0 focus:outline-none"
+        class="group flex-shrink-0 focus:outline-none rounded-full bg-white/[0.06] hover:bg-white/[0.14]"
         size="icon-lg"
-        onclick={() =>
+        onmousedown={(event) => event.stopPropagation()}
+        onclick={() => {
+            if (dawSync.connected) {
+                if (selected) {
+                    toggleDawSyncedPlayback()
+                } else {
+                    globalAudio.selectSampleAsset(sampleAsset, false)
+                    setDawSyncedPlaybackEnabled(true)
+                }
+                return
+            }
+
             playing
                 ? globalAudio.ref.pause()
-                : globalAudio.playSampleAsset(sampleAsset)}
+                : globalAudio.playSampleAsset(sampleAsset)
+        }}
     >
         {#if (selected && globalAudio.loading) || (loading.samplesCount && loading.samples.has(sampleAsset.uuid))}
             <LoaderCircle class="animate-spin" />
@@ -144,14 +162,13 @@
     <div class="min-w-32 w-96 flex-[3_1_auto] overflow-clip">
         <div
             class={cn(
-                "text-left relative after:content-[''] after:absolute after:inset-y-0 after:right-0 after:w-4 after:bg-gradient-to-r after:from-transparent after:pointer-events-none",
-                selected ? " after:to-muted" : "after:to-background"
+                "text-left relative after:content-[''] after:absolute after:inset-y-0 after:right-0 after:w-6 after:bg-gradient-to-r after:from-transparent after:to-background/0 after:pointer-events-none"
             )}
         >
             <Tooltip.Provider>
                 <Tooltip.Root>
                     <Tooltip.Trigger
-                        class="overflow-clip text-nowrap cursor-grab"
+                        class="overflow-clip text-nowrap cursor-grab text-[15px] font-medium text-foreground"
                     >
                         {name}
                     </Tooltip.Trigger>
@@ -160,7 +177,7 @@
                     </Tooltip.Content>
                 </Tooltip.Root>
             </Tooltip.Provider>
-            <div class="flex gap-0.5 text-xs overflow-clip text-nowrap">
+            <div class="flex gap-1 text-xs overflow-clip text-nowrap pt-1">
                 {#each sampleAsset.tags as tag}
                     {@const active = dataStore.tags.includes(tag.uuid)}
                     {@const tag_summary_tag = dataStore.tag_summary.find(
@@ -169,7 +186,7 @@
                     <TagBadge
                         label={tag.label}
                         variant="ghost"
-                        class="px-1 py-0.5 h-auto"
+                        class="h-6 px-2 py-0 text-[11px]"
                         count={tag_summary_tag?.count ?? 0}
                         onclick={() => {
                             if (!active) {
@@ -195,17 +212,17 @@
             const startTime = progress * (sampleAsset.duration / 1000)
             globalAudio.playSampleAsset(sampleAsset, startTime)
         }}
-        class="min-w-32 w-[150px] h-12 flex-grow md:block hidden"
+        class="min-w-40 w-[220px] h-14 flex-grow md:block hidden"
     />
-    <div class="text-muted-foreground flex-shrink-0 w-14 flex-grow">
+    <div class="text-muted-foreground text-sm tabular-nums flex-shrink-0 w-14 flex-grow">
         {millisToMinutesAndSeconds(sampleAsset.duration)}
     </div>
-    <div class="text-muted-foreground flex-shrink-0 w-14 flex-grow">
+    <div class="text-muted-foreground text-sm flex-shrink-0 w-14 flex-grow">
         {(sampleAsset.key &&
             formatKey(sampleAsset.key, sampleAsset.chord_type)) ??
             "--"}
     </div>
-    <div class="text-muted-foreground flex-shrink-0 w-14 flex-grow">
+    <div class="text-muted-foreground text-sm tabular-nums flex-shrink-0 w-14 flex-grow">
         {sampleAsset.bpm ?? "--"}
     </div>
     <!-- svelte-ignore node_invalid_placement_ssr -->

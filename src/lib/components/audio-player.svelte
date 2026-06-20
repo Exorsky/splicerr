@@ -80,7 +80,13 @@
     }
 </script>
 
-<div class={cn("flex flex-col w-full", className)} {...restProps}>
+<div
+    class={cn(
+        "glass-panel mx-3 mt-3 flex h-[74px] w-[calc(100%-1.5rem)] flex-shrink-0 flex-col overflow-hidden rounded-[24px]",
+        className
+    )}
+    {...restProps}
+>
     <audio
         bind:this={globalAudio.ref}
         bind:paused={globalAudio.paused}
@@ -98,7 +104,7 @@
     <input
         style="--progress: {progressRatio * 100 || 0}%"
         type="range"
-        class="slider-nothumb h-1"
+        class="slider-nothumb h-1.5"
         min={0}
         max={progressDuration}
         step="any"
@@ -108,17 +114,19 @@
             if (!dawSync.connected) globalAudio.ref.play()
         }}
     />
-    <div class="flex items-center justify-between py-2 px-4 gap-4">
-        <div class="flex gap-1">
+    <div class="flex min-h-0 flex-1 items-center justify-between py-2.5 px-5 gap-5">
+        <div class="flex gap-1.5">
             <Button
                 variant="ghost"
                 size="icon-lg"
+                class="rounded-full"
                 onclick={onprev}
                 disabled={!globalAudio.currentAsset}><SkipBack /></Button
             >
             <Button
                 variant="ghost"
                 size="icon-lg"
+                class="rounded-full bg-white/[0.12] hover:bg-white/[0.18]"
                 onclick={() => toggleDawSyncedPlayback()}
                 disabled={!globalAudio.currentAsset}
             >
@@ -133,6 +141,7 @@
             <Button
                 variant="ghost"
                 size="icon-lg"
+                class="rounded-full"
                 onclick={onnext}
                 disabled={!globalAudio.currentAsset}><SkipForward /></Button
             >
@@ -140,7 +149,7 @@
         {#if globalAudio.currentAsset}
             <div class="flex gap-4 items-center shrink min-w-64">
                 <PackPreview side="top" pack={currentPack} />
-                <div>
+                <div class="text-muted-foreground">
                     {#if globalAudio.currentAsset.asset_category_slug in assetIcons}
                         {@const Icon =
                             assetIcons[
@@ -153,12 +162,12 @@
                 </div>
                 <div class="min-w-32 overflow-clip">
                     <div
-                        class="text-left pr-4 relative after:content-[''] after:absolute after:inset-y-0 after:right-0 after:w-4 after:bg-gradient-to-r after:from-transparent after:pointer-events-none after:to-background"
+                        class="text-left pr-4 relative after:content-[''] after:absolute after:inset-y-0 after:right-0 after:w-5 after:bg-gradient-to-r after:from-transparent after:to-background/0 after:pointer-events-none"
                     >
                         <Tooltip.Provider>
                             <Tooltip.Root>
                                 <Tooltip.Trigger
-                                    class="overflow-clip text-nowrap cursor-grab"
+                                    class="overflow-clip text-nowrap cursor-grab text-sm font-medium"
                                 >
                                     {currentName}
                                 </Tooltip.Trigger>
@@ -168,7 +177,7 @@
                             </Tooltip.Root>
                         </Tooltip.Provider>
                         <div
-                            class="flex gap-0.5 text-xs overflow-clip text-nowrap pr-2"
+                            class="flex gap-1 text-xs overflow-clip text-nowrap pr-2 pt-1"
                         >
                             {#each globalAudio.currentAsset.tags as tag}
                                 {@const active = dataStore.tags.includes(
@@ -181,7 +190,7 @@
                                 <TagBadge
                                     label={tag.label}
                                     variant="ghost"
-                                    class="px-1 py-0.5 h-auto"
+                                    class="h-6 px-2 py-0 text-[11px]"
                                     count={tag_summary_tag?.count ?? 0}
                                     onclick={() => {
                                         if (!active) {
@@ -205,8 +214,8 @@
                             "hidden sm:flex h-9 items-center gap-1.5 rounded-md px-2 text-xs font-medium tabular-nums",
                             dawSync.connected
                                 ? dawSync.waitingForBar
-                                  ? "text-primary"
-                                  : "text-foreground"
+                                  ? "glass-pill text-foreground"
+                                  : "glass-pill text-foreground"
                                 : "text-muted-foreground"
                         )}
                     >
@@ -222,7 +231,7 @@
                 <Tooltip.Provider>
                     <Tooltip.Root>
                         <Tooltip.Trigger
-                            class="hidden sm:flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:text-foreground cursor-grab"
+                            class="glass-control hidden sm:flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:text-foreground cursor-grab"
                             draggable="true"
                             onpointerdown={() =>
                                 prefetchDawSampleDrag(
@@ -255,7 +264,7 @@
             <Button
                 variant="ghost"
                 size="icon-lg"
-                class="shrink-0"
+                class="shrink-0 rounded-full"
                 onclick={() => globalAudio.toggleMute()}
             >
                 {#if globalAudio.volume == 0}

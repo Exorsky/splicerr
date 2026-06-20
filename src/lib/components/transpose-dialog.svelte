@@ -12,6 +12,10 @@
     import { FLAT_NOTES, SHARP_NOTES } from "$lib/shared/transpose.svelte"
     import { clearTransposedCache } from "$lib/shared/store.svelte"
     import { globalAudio } from "$lib/shared/audio.svelte"
+    import {
+        dawSync,
+        notifyDawTransposeChanged,
+    } from "$lib/shared/daw-sync.svelte"
 
     const PITCH_RANGE = 12
 
@@ -39,7 +43,11 @@
     function apply() {
         saveConfig()
         clearTransposedCache()
-        globalAudio.reloadCurrent()
+        if (dawSync.connected) {
+            notifyDawTransposeChanged()
+        } else {
+            globalAudio.reloadCurrent()
+        }
     }
 
     function setEnabled(value: boolean) {

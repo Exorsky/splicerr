@@ -1,7 +1,7 @@
 <script lang="ts">
     import { loading } from "$lib/shared/loading.svelte"
     import { uid } from "$lib/shared/uid"
-    import { fetch } from "@tauri-apps/plugin-http"
+    import { fetch as tauriFetch } from "@tauri-apps/plugin-http"
     import pako from "pako"
     import { inview } from "svelte-inview"
     import { cn } from "$lib/utils"
@@ -42,7 +42,10 @@
         isLoading = true
         loading.waveformsCount += 1
         const loadingSrc = src
-        fetch(src)
+        fetch(src).catch((err) => {
+            console.info("🌐 Browser waveform fetch failed, falling back to Tauri HTTP", err)
+            return tauriFetch(src)
+        })
             .then((resp) => {
                 if (loadingSrc == src) {
                     if (resp.headers.get("content-encoding") == "gzip") {
@@ -72,6 +75,7 @@
             .catch((error: Error) => {
                 console.error("⚠️ Failed loading waveform", error)
                 loading.waveformsCount -= 1
+                isLoading = false
             })
     }
 
@@ -100,10 +104,15 @@
         pathData.push("Z") // Close the path
         return pathData.join(" ")
     }
+
+    const waveformPath = $derived(generateWaveformPath(waveform))
 </script>
 
 <button
-    class={cn(className, "focus:outline-none cursor-grab")}
+    class={cn(
+        "waveform-surface overflow-hidden rounded-xl focus:outline-none cursor-grab",
+        className
+    )}
     use:inview
     tabindex={-1}
     oninview_change={(event) => (isInView = event.detail.inView)}
@@ -118,7 +127,7 @@
     {#if waveform}
         <svg
             class={cn(
-                "size-full transition-transform duration-1000",
+                "size-full opacity-95",
                 isInView && "",
                 !loaded && "scale-y-0"
             )}
@@ -129,15 +138,15 @@
                 <linearGradient id={key} x1="0" y1="0" x2="1" y2="0">
                     <stop
                         offset={`${progress * 100 || 0}%`}
-                        stop-color="hsl(var(--primary))"
+                        stop-color="rgba(255,255,255,0.96)"
                     />
                     <stop
                         offset={`${progress * 100 || 0}%`}
-                        stop-color="hsl(var(--muted-foreground))"
+                        stop-color="rgba(255,255,255,0.36)"
                     />
                 </linearGradient>
             </defs>
-            <path d={generateWaveformPath(waveform)} fill={`url(#${key})`} />
+            <path d={waveformPath} fill={`url(#${key})`} />
         </svg>
     {/if}
 </button>

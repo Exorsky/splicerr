@@ -38,7 +38,7 @@
         onselect()
     }}
 >
-    <Select.Trigger class="w-[180px]">{triggerContent}</Select.Trigger>
+    <Select.Trigger class="w-[190px]">{triggerContent}</Select.Trigger>
     <Select.Content>
         <Select.Group>
             <Select.GroupHeading

@@ -89,7 +89,7 @@
 <div>
     <button
         class={cn(
-            "flex items-center border-input border px-3 rounded-md w-[180px] cursor-text gap-2 ring-offset-background focus-within:ring-ring focus:ring-ring h-9 justify-between whitespace-nowrap bg-transparent py-2 text-sm shadow-sm focus-within:outline-none focus:outline-none focus-within:ring-1 focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50",
+            "glass-control flex items-center px-4 rounded-full w-[150px] cursor-text gap-2 focus-within:ring-ring focus:ring-ring h-12 justify-between whitespace-nowrap py-2 text-sm focus-within:outline-none focus:outline-none focus-within:ring-1 focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50",
             className
         )}
         onmousedown={(e) => {
@@ -145,7 +145,7 @@
             <!-- TODO: Use a popover instead -->
             <Card
                 bind:ref={cardRef}
-                class={cn("flex-col rounded-md p-1", open ? "flex" : "hidden")}
+                class={cn("flex-col rounded-2xl p-1", open ? "flex" : "hidden")}
             >
                 <div
                     class="px-2 py-1.5 text-xs text-muted-foreground font-normal"
