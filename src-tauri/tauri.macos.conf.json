@@ -1,0 +1,9 @@
+{
+    "$schema": "https://schema.tauri.app/config/2",
+    "bundle": {
+        "resources": [
+            "resources/plugins/Splicerr Bridge.component",
+            "resources/plugins/Splicerr Bridge.vst3"
+        ]
+    }
+}

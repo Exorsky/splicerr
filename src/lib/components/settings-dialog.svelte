@@ -24,16 +24,19 @@
     import LoaderCircle from "lucide-svelte/icons/loader-circle"
     import Trash2 from "lucide-svelte/icons/trash-2"
     import { invoke } from "@tauri-apps/api/core"
+    import { revealItemInDir } from "@tauri-apps/plugin-opener"
 
     let flashbangAudio = $state<HTMLAudioElement>(null!)
     let installingBridge = $state(false)
     let uninstallingBridge = $state(false)
     let bridgeInstalled = $state<boolean | null>(null)
     let bridgeInstallStatus = $state<string | null>(null)
+    let bridgeInstallPath = $state<string | null>(null)
 
     async function refreshBridgeInstallState() {
         try {
             bridgeInstalled = await invoke<boolean>("bridge_plugins_installed")
+            bridgeInstallPath = await invoke<string | null>("bridge_install_path")
         } catch (err) {
             bridgeInstallStatus = String(err)
         }
@@ -208,7 +211,11 @@
             <div class="flex flex-col gap-2">
                 <Label>DAW Bridge</Label>
                 <p class="text-muted-foreground text-sm">
-                    Install the bundled AU and VST3 bridge plugins into the system Audio Plug-Ins folders.
+                    Install the bundled bridge plugin so your DAW can sync with
+                    Splicerr. On macOS this installs AU and VST3 into the system
+                    Audio Plug-Ins folders; on Windows it installs the VST3 into
+                    the system VST3 folder. You'll be asked for administrator
+                    rights.
                 </p>
                 <div class="flex flex-wrap gap-2">
                     <Button
@@ -244,6 +251,16 @@
                     <p class="text-muted-foreground text-sm">
                         {bridgeInstallStatus}
                     </p>
+                {/if}
+                {#if bridgeInstalled && bridgeInstallPath}
+                    <button
+                        type="button"
+                        class="text-primary text-sm text-left break-all underline-offset-4 hover:underline focus:outline-none"
+                        title="Reveal in file manager"
+                        onclick={() => revealItemInDir(bridgeInstallPath!)}
+                    >
+                        {bridgeInstallPath}
+                    </button>
                 {/if}
             </div>
             <div class="flex flex-col gap-2">

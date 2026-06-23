@@ -4,6 +4,11 @@ node_modules
 /.svelte-kit
 /package
 plugins/**/build
+
+# Bridge plugin bundles are built from source (in CI or locally), never committed.
+src-tauri/resources/plugins/*
+!src-tauri/resources/plugins/.gitkeep
+!src-tauri/resources/plugins/README.md
 .env
 .env.*
 !.env.example

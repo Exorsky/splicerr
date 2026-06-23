@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::net::UdpSocket;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::path::{Path, PathBuf};
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
@@ -70,9 +72,15 @@ const BRIDGE_INIT_JS: &str = r#"
 /// Local UDP port used by the DAW bridge plugin. The plugin sends small JSON
 /// packets here with host transport and tempo data.
 const DAW_SYNC_PORT: u16 = 37651;
-const BRIDGE_COMPONENT_RESOURCE: &str = "resources/plugins/Splicerr Bridge.component";
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 const BRIDGE_VST3_RESOURCE: &str = "resources/plugins/Splicerr Bridge.vst3";
+#[cfg(target_os = "windows")]
+const BRIDGE_VST3_BUNDLE: &str = "Splicerr Bridge.vst3";
+#[cfg(target_os = "macos")]
+const BRIDGE_COMPONENT_RESOURCE: &str = "resources/plugins/Splicerr Bridge.component";
+#[cfg(target_os = "macos")]
 const SYSTEM_COMPONENTS_DIR: &str = "/Library/Audio/Plug-Ins/Components";
+#[cfg(target_os = "macos")]
 const SYSTEM_VST3_DIR: &str = "/Library/Audio/Plug-Ins/VST3";
 
 /// Shared state correlating in-flight requests with the bridge webview's replies.
@@ -311,10 +319,12 @@ fn daw_set_playback_enabled(
     Ok(())
 }
 
+#[cfg(target_os = "macos")]
 fn shell_quote(path: &Path) -> String {
     format!("'{}'", path.to_string_lossy().replace('\'', "'\\''"))
 }
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 fn bridge_resource_path(app: &tauri::AppHandle, resource: &str) -> Result<PathBuf, String> {
     let resource_dir = app
         .path()
@@ -329,6 +339,80 @@ fn bridge_resource_path(app: &tauri::AppHandle, resource: &str) -> Result<PathBu
     Ok(path)
 }
 
+/// System-wide VST3 directory on Windows (`%CommonProgramFiles%\VST3`, i.e.
+/// `C:\Program Files\Common Files\VST3`). Every Windows DAW (Ableton Live, FL
+/// Studio, Cubase, Reaper) scans this location by default, so installing here
+/// makes the bridge appear without any per-host folder configuration. Writing
+/// here requires administrator rights, so installs go through a UAC prompt —
+/// mirroring the macOS install into the system Audio Plug-Ins folders.
+#[cfg(target_os = "windows")]
+fn windows_vst3_dir() -> Result<PathBuf, String> {
+    let common_program_files = std::env::var_os("CommonProgramFiles")
+        .ok_or_else(|| "CommonProgramFiles is not set".to_string())?;
+    Ok(PathBuf::from(common_program_files).join("VST3"))
+}
+
+/// Quotes a path as a PowerShell single-quoted string literal (doubling any
+/// embedded single quote). Used to safely embed app-controlled paths into the
+/// elevated installer script.
+#[cfg(target_os = "windows")]
+fn ps_single_quote(path: &Path) -> String {
+    format!("'{}'", path.to_string_lossy().replace('\'', "''"))
+}
+
+/// Runs `script` in an elevated PowerShell (UAC prompt) and waits for it.
+///
+/// The script body is passed via `-EncodedCommand` (UTF-16LE base64) rather
+/// than a temp `.ps1` file. A temp script would live in the user-writable
+/// `%TEMP%` yet execute elevated, making it a local privilege-escalation
+/// hijack target (an attacker racing the UAC prompt could overwrite it).
+/// Base64 is a single quote-free token, so it also needs no command-line
+/// escaping.
+#[cfg(target_os = "windows")]
+fn run_elevated_powershell(script: &str) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    // Suppresses the console window of the (non-elevated) launcher process. The
+    // elevated child is hidden via `-WindowStyle Hidden` below. The UAC consent
+    // dialog still appears — that prompt is the security boundary and must not
+    // be suppressed.
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    let utf16: Vec<u8> = script
+        .encode_utf16()
+        .flat_map(|unit| unit.to_le_bytes())
+        .collect();
+    let encoded = base64::engine::general_purpose::STANDARD.encode(utf16);
+
+    let launcher = format!(
+        "$ErrorActionPreference='Stop'; \
+         $p = Start-Process -FilePath 'powershell' \
+         -ArgumentList @('-NoProfile','-WindowStyle','Hidden','-EncodedCommand','{encoded}') \
+         -Verb RunAs -WindowStyle Hidden -Wait -PassThru; exit $p.ExitCode"
+    );
+
+    let status = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            &launcher,
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .status()
+        .map_err(|e| format!("Failed to launch elevated installer: {e}"))?;
+
+    if !status.success() {
+        return Err(
+            "Bridge operation failed or was not approved (administrator rights are required)."
+                .into(),
+        );
+    }
+
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
 fn plugin_install_script(source: &Path, destination_dir: &str) -> String {
     let destination = Path::new(destination_dir).join(
         source
@@ -350,11 +434,13 @@ fn plugin_install_script(source: &Path, destination_dir: &str) -> String {
     .join(" && ")
 }
 
+#[cfg(target_os = "macos")]
 fn plugin_remove_script(destination_dir: &str, bundle_name: &str) -> String {
     let destination = Path::new(destination_dir).join(bundle_name);
     format!("rm -rf {}", shell_quote(&destination))
 }
 
+#[cfg(target_os = "macos")]
 fn bridge_plugins_installed_paths() -> bool {
     Path::new(SYSTEM_COMPONENTS_DIR)
         .join("Splicerr Bridge.component")
@@ -366,23 +452,81 @@ fn bridge_plugins_installed_paths() -> bool {
 
 #[tauri::command]
 fn bridge_plugins_installed() -> Result<bool, String> {
-    #[cfg(not(target_os = "macos"))]
-    {
-        return Ok(false);
-    }
-
     #[cfg(target_os = "macos")]
     {
         Ok(bridge_plugins_installed_paths())
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        Ok(windows_vst3_dir()?.join(BRIDGE_VST3_BUNDLE).exists())
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        Ok(false)
+    }
+}
+
+/// Path to the installed bridge `.vst3` bundle in the system plug-in folder,
+/// for revealing it in the OS file manager. `None` on unsupported platforms.
+#[tauri::command]
+fn bridge_install_path() -> Result<Option<String>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        Ok(Some(
+            Path::new(SYSTEM_VST3_DIR)
+                .join("Splicerr Bridge.vst3")
+                .to_string_lossy()
+                .into_owned(),
+        ))
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        Ok(Some(
+            windows_vst3_dir()?
+                .join(BRIDGE_VST3_BUNDLE)
+                .to_string_lossy()
+                .into_owned(),
+        ))
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        Ok(None)
     }
 }
 
 #[tauri::command]
 fn install_bridge_plugins(app: tauri::AppHandle) -> Result<String, String> {
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        let vst3 = bridge_resource_path(&app, BRIDGE_VST3_RESOURCE)?;
+        let destination_dir = windows_vst3_dir()?;
+        let destination = destination_dir.join(BRIDGE_VST3_BUNDLE);
+
+        let script = format!(
+            "$ErrorActionPreference = 'Stop'\n\
+             $dest = {dest}\n\
+             if (Test-Path -LiteralPath $dest) {{ Remove-Item -LiteralPath $dest -Recurse -Force }}\n\
+             New-Item -ItemType Directory -Force -Path {dest_dir} | Out-Null\n\
+             Copy-Item -LiteralPath {src} -Destination {dest_dir} -Recurse -Force\n",
+            dest = ps_single_quote(&destination),
+            dest_dir = ps_single_quote(&destination_dir),
+            src = ps_single_quote(&vst3),
+        );
+        run_elevated_powershell(&script)?;
+
+        return Ok("Installed Splicerr Bridge.".into());
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = app;
-        return Err("Bridge plugin installation is only supported on macOS".into());
+        return Err(
+            "Bridge plugin installation is only supported on macOS and Windows".into(),
+        );
     }
 
     #[cfg(target_os = "macos")]
@@ -414,17 +558,30 @@ fn install_bridge_plugins(app: tauri::AppHandle) -> Result<String, String> {
             ));
         }
 
-        Ok(format!(
-            "Installed Splicerr Bridge to {SYSTEM_COMPONENTS_DIR} and {SYSTEM_VST3_DIR}"
-        ))
+        Ok("Installed Splicerr Bridge.".into())
     }
 }
 
 #[tauri::command]
 fn uninstall_bridge_plugins() -> Result<String, String> {
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
     {
-        return Err("Bridge plugin uninstallation is only supported on macOS".into());
+        let destination = windows_vst3_dir()?.join(BRIDGE_VST3_BUNDLE);
+        let script = format!(
+            "$ErrorActionPreference = 'Stop'\n\
+             $dest = {dest}\n\
+             if (Test-Path -LiteralPath $dest) {{ Remove-Item -LiteralPath $dest -Recurse -Force }}\n",
+            dest = ps_single_quote(&destination),
+        );
+        run_elevated_powershell(&script)?;
+        return Ok("Removed Splicerr Bridge from the system VST3 folder".into());
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        return Err(
+            "Bridge plugin uninstallation is only supported on macOS and Windows".into(),
+        );
     }
 
     #[cfg(target_os = "macos")]
@@ -517,6 +674,7 @@ pub fn run() {
             daw_load_sample,
             daw_set_playback_enabled,
             bridge_plugins_installed,
+            bridge_install_path,
             install_bridge_plugins,
             uninstall_bridge_plugins,
             open_devtools

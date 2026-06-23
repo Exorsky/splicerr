@@ -57,6 +57,32 @@ jobs:
       - name: 📦 Install frontend dependencies
         run: pnpm install # change this to npm, pnpm or bun depending on which one you use.
 
+      # Build the Splicerr Bridge plugin from source so the shipped binaries
+      # provably match the auditable C++ in plugins/splicerr-daw-bridge.
+      - name: 🎛️ Build Splicerr Bridge plugin (macOS)
+        if: startsWith(matrix.platform, 'macos')
+        run: |
+          cmake -B plugins/splicerr-daw-bridge/build -S plugins/splicerr-daw-bridge \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          cmake --build plugins/splicerr-daw-bridge/build --config Release
+          artefacts="plugins/splicerr-daw-bridge/build/SplicerrBridge_artefacts/Release"
+          dest="src-tauri/resources/plugins"
+          rm -rf "$dest/Splicerr Bridge.component" "$dest/Splicerr Bridge.vst3"
+          cp -R "$artefacts/AU/Splicerr Bridge.component" "$dest/"
+          cp -R "$artefacts/VST3/Splicerr Bridge.vst3" "$dest/"
+
+      - name: 🎛️ Build Splicerr Bridge plugin (Windows)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          cmake -B plugins/splicerr-daw-bridge/build -S plugins/splicerr-daw-bridge
+          cmake --build plugins/splicerr-daw-bridge/build --config Release
+          $artefacts = "plugins/splicerr-daw-bridge/build/SplicerrBridge_artefacts/Release"
+          $dest = "src-tauri/resources/plugins"
+          Remove-Item -Recurse -Force "$dest/Splicerr Bridge.vst3" -ErrorAction SilentlyContinue
+          Copy-Item -Recurse "$artefacts/VST3/Splicerr Bridge.vst3" "$dest/"
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -70,7 +96,7 @@ jobs:
             that restores functionality and adds DAW bridge sync.
 
             ### New
-            - **Splicerr Bridge plugin** for DAW sync, bundled as AU and VST3.
+            - **Splicerr Bridge plugin** for DAW sync — AU + VST3 on macOS, VST3 on Windows.
             - **Bridge installer in Settings** with Install/Reinstall/Uninstall actions.
             - DAW transport sync for play/stop, BPM, bar position, loops, and one-shot triggers.
             - DAW-mode drag-and-drop for the currently selected sample stretched to the host BPM.
