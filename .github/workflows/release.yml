@@ -98,6 +98,10 @@ jobs:
             ### New
             - **Splicerr Bridge plugin** for DAW sync — AU + VST3 on macOS, VST3 on Windows.
             - **Bridge installer in Settings** with Install/Reinstall/Uninstall actions.
+              Installs into the system plug-in folders so any DAW finds it; this asks
+              for administrator rights (UAC on Windows, your password on macOS).
+            - **Clickable install path** in Settings — reveals the installed plugin in
+              your file manager.
             - DAW transport sync for play/stop, BPM, bar position, loops, and one-shot triggers.
             - DAW-mode drag-and-drop for the currently selected sample stretched to the host BPM.
 
@@ -117,10 +121,15 @@ jobs:
             - Drag-and-drop crash fix on macOS Sequoia and the Cloudflare 403 fix
               (requests routed through a real browser engine).
 
+            ### 🔒 Build & transparency
+            - The Splicerr Bridge plugin is **built from source in CI**, not shipped as a
+              prebuilt binary — so the bundled plugin matches the public C++ in
+              `plugins/splicerr-daw-bridge`.
+
             ### 📦 Downloads
             - **Windows** — `.exe` (installer) or `.msi`
             - **macOS** — `.dmg` (Apple Silicon & Intel)
-            - **Linux** — `.AppImage`, `.deb`, `.rpm`
+            - **Linux** — `.AppImage`, `.deb`, `.rpm` (DAW bridge not included)
 
             > Once the headers fix is merged upstream, please switch back to the original repo.
             > All credit to the original authors — please ⭐ the original
