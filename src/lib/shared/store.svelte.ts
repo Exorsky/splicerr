@@ -13,12 +13,15 @@ import type {
 } from "$lib/splice/types"
 import { globalAudio } from "./audio.svelte"
 import { loading } from "./loading.svelte"
-import { fetch } from "@tauri-apps/plugin-http"
-import { pitchShiftAudioBuffer, semitonesFor } from "./transpose.svelte"
-import { audioBufferToWav, decodeAudioFromURL } from "./wav"
+import { fetch as tauriFetch } from "@tauri-apps/plugin-http"
+import { semitonesFor } from "./transpose.svelte"
+import { decodeAudioFromURL } from "./wav"
+import { renderAudioBufferToWav } from "$lib/shared/audio-render-worker-client"
 
 export const DEFAULT_SORT = "relevance"
 export const PER_PAGE = 50
+const MAX_DESCRAMBLED_BLOBS = 4
+const MAX_TRANSPOSED_BLOBS = 2
 
 export const randomSeed = () =>
     Math.floor(Math.random() * Number.MAX_SAFE_INTEGER).toString()
@@ -86,6 +89,47 @@ export const storeCallbacks = $state({
 
 let currentQueryIdentity: string = ""
 
+async function fetchBinaryResponse(url: string, signal?: AbortSignal) {
+    try {
+        return await window.fetch(url, { signal })
+    } catch (err) {
+        if (signal?.aborted) throw err
+        console.info("🌐 Browser fetch failed, falling back to Tauri HTTP", err)
+        return await tauriFetch(url, { signal })
+    }
+}
+
+function touchMapEntry<T>(map: Map<string, T>, key: string) {
+    const value = map.get(key)
+    if (value === undefined) return value
+
+    map.delete(key)
+    map.set(key, value)
+    return value
+}
+
+function trimDescrambledCache() {
+    for (const [uuid, blobURL] of dataStore.descrambledSamples) {
+        if (dataStore.descrambledSamples.size <= MAX_DESCRAMBLED_BLOBS) break
+        if (uuid === globalAudio.currentAsset?.uuid) continue
+
+        dataStore.descrambledSamples.delete(uuid)
+        window.URL.revokeObjectURL(blobURL)
+        console.info("🧹 Trimmed descrambled sample blob")
+    }
+}
+
+function trimTransposedCache() {
+    for (const [key, blobURL] of dataStore.transposedSamples) {
+        if (dataStore.transposedSamples.size <= MAX_TRANSPOSED_BLOBS) break
+        if (key.startsWith(`${globalAudio.currentAsset?.uuid}:`)) continue
+
+        dataStore.transposedSamples.delete(key)
+        window.URL.revokeObjectURL(blobURL)
+        console.info("🧹 Trimmed transposed sample blob")
+    }
+}
+
 export const fetchAssets = () => {
     const identityBeforeFetch = JSON.stringify(queryIdentity)
     if (identityBeforeFetch != currentQueryIdentity) {
@@ -149,7 +193,10 @@ export const fetchAssets = () => {
 }
 
 export async function getDescrambledSampleURL(sampleAsset: SampleAsset) {
-    const existingBlobURL = dataStore.descrambledSamples.get(sampleAsset.uuid)
+    const existingBlobURL = touchMapEntry(
+        dataStore.descrambledSamples,
+        sampleAsset.uuid
+    )
     if (existingBlobURL) {
         console.info("✔️ Reusing descrambled sample blob")
         return existingBlobURL
@@ -163,13 +210,13 @@ export async function getDescrambledSampleURL(sampleAsset: SampleAsset) {
     // bails out early. This bites samples in a collection whose cached CDN url has
     // expired and couldn't be refreshed (see refreshCollectionUrls).
     try {
-        let response = await fetch(sampleAsset.files[0].url)
+        let response = await fetchBinaryResponse(sampleAsset.files[0].url)
         if (!response.ok) {
             // The presigned url likely expired mid-session. Re-resolve it from the
             // parent pack and retry once before giving up.
             const refreshed = await refreshSampleUrl(sampleAsset)
             if (refreshed) {
-                response = await fetch(sampleAsset.files[0].url)
+                response = await fetchBinaryResponse(sampleAsset.files[0].url)
             }
         }
         if (!response.ok) {
@@ -189,10 +236,53 @@ export async function getDescrambledSampleURL(sampleAsset: SampleAsset) {
         const blobURL = window.URL.createObjectURL(blob)
 
         dataStore.descrambledSamples.set(sampleAsset.uuid, blobURL)
+        trimDescrambledCache()
 
         console.info("🔗 Created descrambled sample blob")
 
         return blobURL
+    } finally {
+        loading.samples.delete(sampleAsset.uuid)
+        loading.samplesCount--
+    }
+}
+
+export async function getDescrambledSampleBytes(
+    sampleAsset: SampleAsset,
+    signal?: AbortSignal
+) {
+    const throwIfAborted = () => {
+        if (signal?.aborted) {
+            throw new DOMException("Sample fetch cancelled", "AbortError")
+        }
+    }
+
+    loading.samples.add(sampleAsset.uuid)
+    loading.samplesCount++
+
+    try {
+        throwIfAborted()
+        let response = await fetchBinaryResponse(sampleAsset.files[0].url, signal)
+        if (!response.ok) {
+            const refreshed = await refreshSampleUrl(sampleAsset)
+            if (refreshed) {
+                throwIfAborted()
+                response = await fetchBinaryResponse(
+                    sampleAsset.files[0].url,
+                    signal
+                )
+            }
+        }
+        if (!response.ok) {
+            throw new Error(
+                `Sample fetch failed (${response.status} ${response.statusText}) — the CDN url is likely expired`
+            )
+        }
+
+        throwIfAborted()
+        const data = new Uint8Array(await response.arrayBuffer())
+        throwIfAborted()
+        return descrambleSample(data)
     } finally {
         loading.samples.delete(sampleAsset.uuid)
         loading.samplesCount--
@@ -227,7 +317,7 @@ export async function getTransposedSampleURL(
     semitones: number
 ) {
     const cacheKey = `${sampleAsset.uuid}:${semitones}`
-    const existing = dataStore.transposedSamples.get(cacheKey)
+    const existing = touchMapEntry(dataStore.transposedSamples, cacheKey)
     if (existing) {
         console.info("✔️ Reusing transposed sample blob")
         return existing
@@ -239,12 +329,17 @@ export async function getTransposedSampleURL(
     try {
         const descrambledURL = await getDescrambledSampleURL(sampleAsset)
         const buffer = await decodeAudioFromURL(descrambledURL)
-        const shifted = pitchShiftAudioBuffer(buffer, semitones)
-        const wav = audioBufferToWav(shifted)
+        const { wavData } = await renderAudioBufferToWav(buffer, {
+            semitones,
+            tempoRatio: 1,
+            trimStartSeconds: 0,
+            maxDurationSeconds: null,
+        })
         const blobURL = window.URL.createObjectURL(
-            new Blob([wav], { type: "audio/wav" })
+            new Blob([wavData], { type: "audio/wav" })
         )
         dataStore.transposedSamples.set(cacheKey, blobURL)
+        trimTransposedCache()
         console.info(`🎚️ Created transposed sample blob (${semitones} st)`)
         return blobURL
     } finally {

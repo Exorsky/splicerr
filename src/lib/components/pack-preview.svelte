@@ -2,6 +2,7 @@
     import * as HoverCard from "$lib/components/ui/hover-card/index.js"
     import type { PackAsset } from "$lib/splice/types"
     import { openUrl } from "@tauri-apps/plugin-opener"
+    import { cn } from "$lib/utils"
     const {
         pack,
         side = "right",
@@ -16,6 +17,9 @@
 
     const name = $derived(pack?.name.split("/").slice(-1)[0])
     const imgSrc = $derived(pack?.files[0].url)
+    const sizeStyle = $derived(
+        `width: ${size * 0.25}rem; height: ${size * 0.25}rem;`
+    )
 
     const packURL = $derived(
         `https://splice.com/sounds/packs/${pack?.permalink_base_url}/${pack?.permalink_slug}`
@@ -31,7 +35,11 @@
             <img
                 src={imgSrc}
                 alt={name}
-                class={`size-${size} rounded`}
+                class={cn(
+                    "rounded-xl border border-white/10 object-cover shadow-lg shadow-black/20",
+                    className
+                )}
+                style={sizeStyle}
                 draggable="false"
             />
         </HoverCard.Trigger>
@@ -43,5 +51,11 @@
         </HoverCard.Content>
     </HoverCard.Root>
 {:else}
-    <div class={`size-${size} rounded flex-shrink-0 bg-muted`}></div>
+    <div
+        class={cn(
+            "rounded-xl flex-shrink-0 bg-white/[0.08] border border-white/10",
+            className
+        )}
+        style={sizeStyle}
+    ></div>
 {/if}

@@ -90,7 +90,7 @@ jobs:
           tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'Splicerr v__VERSION__'
           releaseBody: |
-            ## Splicerr v1.14.0 — DAW Bridge
+            ## Splicerr v1.15.0 — DAW Bridge
 
             Temporary fork of [Robert-K/splicerr](https://github.com/Robert-K/splicerr)
             that restores functionality and adds DAW bridge sync.

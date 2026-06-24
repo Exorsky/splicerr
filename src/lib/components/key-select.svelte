@@ -61,7 +61,7 @@
             <Button
                 variant="outline"
                 class={cn(
-                    "w-[120px] justify-between hover:bg-transparent",
+                    "w-[128px] h-12 rounded-full justify-between hover:bg-white/10",
                     open && "border-ring"
                 )}
                 {...props}

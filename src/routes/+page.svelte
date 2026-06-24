@@ -38,6 +38,7 @@
         findCollection,
         removeSample,
     } from "$lib/shared/collections.svelte"
+    import { dawSync } from "$lib/shared/daw-sync.svelte"
 
     // Single source of truth for the active view. The header, list, empty state
     // and row actions all key off this one derived, so they can never disagree
@@ -163,13 +164,22 @@
         fetchAssets()
     }
 
+    const selectOrPlaySample = (sampleAsset: (typeof shownSamples)[number]) => {
+        if (dawSync.connected) {
+            globalAudio.selectSampleAsset(sampleAsset, false)
+            return
+        }
+
+        globalAudio.playSampleAsset(sampleAsset)
+    }
+
     const gotoPrev = () => {
         const currentIndex = shownSamples.findIndex(
             (asset) => asset.uuid === globalAudio.currentAsset?.uuid
         )
         if (currentIndex > 0) {
             const sampleAsset = shownSamples[currentIndex - 1]
-            globalAudio.playSampleAsset(sampleAsset)
+            selectOrPlaySample(sampleAsset)
             const entryEl = document.getElementById(
                 `sample-list-entry-${sampleAsset.uuid}`
             )
@@ -184,7 +194,7 @@
         )
         if (currentIndex !== -1 && currentIndex + 1 < shownSamples.length) {
             const sampleAsset = shownSamples[currentIndex + 1]
-            globalAudio.playSampleAsset(sampleAsset)
+            selectOrPlaySample(sampleAsset)
             const entryEl = document.getElementById(
                 `sample-list-entry-${sampleAsset.uuid}`
             )
@@ -220,17 +230,17 @@
     })
 </script>
 
-<div class="flex flex-col size-full">
-    <div class="flex flex-grow min-h-0">
+<div class="macos-shell flex size-full min-h-0 flex-col overflow-hidden p-3">
+    <div class="glass-panel flex min-h-0 flex-1 overflow-hidden rounded-[26px]">
         <CollectionsSidebar />
-        <main class="flex flex-col flex-grow min-w-0">
-    <div class="flex flex-col p-4 gap-4">
-        <div class="flex gap-4 justify-between items-center">
+        <main class="flex min-h-0 flex-grow flex-col min-w-0">
+    <div class="flex flex-shrink-0 flex-col px-5 pt-5 pb-3 gap-4">
+        <div class="flex gap-3 justify-between items-center">
             {#if view.kind === "browse"}
                 <SearchInput
                     bind:value={queryStore.query}
                     onsubmit={fetchAssets}
-                    class="flex-grow"
+                    class="max-w-[720px] flex-grow"
                     bind:inputRef={searchInputRef}
                 />
                 <KeySelect
@@ -273,7 +283,7 @@
                 >
                     <div
                         class={cn(
-                            "flex text-nowrap gap-1 overflow-clip flex-shrink",
+                            "flex text-nowrap gap-2 overflow-clip flex-shrink",
                             expandTags && "flex-wrap"
                         )}
                     >
@@ -313,7 +323,7 @@
                                 tagsContainerRef.offsetHeight + "px"
                         })
                     }}
-                    class="shrink-0 h-6 px-5 text-muted-foreground"
+                    class="shrink-0 h-8 px-5 rounded-full text-muted-foreground"
                 >
                     <ChevronDown
                         size="18"
@@ -326,8 +336,8 @@
             </div>
         </div>
 
-        <div class="flex justify-between items-end gap-2">
-            <div class="text-muted-foreground text-xs flex-grow">
+        <div class="flex justify-between items-center gap-2">
+            <div class="text-muted-foreground text-sm flex-grow tabular-nums">
                 {dataStore.total_records.toLocaleString()} results
             </div>
             <Button
@@ -368,12 +378,11 @@
         </div>
         {/if}
 
-        <div class="flex flex-col gap-2">
-            <Separator />
+        <div class="glass-panel flex flex-col overflow-hidden rounded-[22px]">
             <div
-                class="flex gap-2 items-center justify-between overflow-clip px-2"
+                class="flex gap-2 items-center justify-between overflow-clip px-6 py-4"
             >
-                <div class="w-12 flex-shrink-0 text-xs text-muted-foreground">
+                <div class="w-12 flex-shrink-0 text-xs uppercase tracking-wide text-muted-foreground">
                     Pack
                 </div>
                 <div
@@ -387,7 +396,9 @@
                     onsort={updateSort}
                     class="min-w-32 w-96 flex-[3_1_auto]"
                 />
-                <div class="min-w-32 w-[150px] flex-grow md:block hidden"></div>
+                <div class="min-w-40 w-[220px] flex-grow md:block hidden text-xs uppercase tracking-wide text-muted-foreground">
+                    Waveform
+                </div>
                 <SortHeader
                     value="duration"
                     label="Time"
@@ -419,7 +430,7 @@
         </div>
     </div>
     <ScrollArea
-        class="px-4 flex-grow before:content-[''] before:absolute before:inset-x-0 before:top-0 before:h-4 before:bg-gradient-to-t before:from-transparent before:to-background before:pointer-events-none after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-4 after:bg-gradient-to-b after:from-transparent after:to-background after:pointer-events-none"
+        class="px-5 min-h-0 flex-1 before:content-[''] before:absolute before:inset-x-0 before:top-0 before:h-6 before:bg-gradient-to-t before:from-transparent before:to-background/80 before:pointer-events-none after:content-[''] after:absolute after:inset-x-0 after:bottom-0 after:h-6 after:bg-gradient-to-b after:from-transparent after:to-background/80 after:pointer-events-none"
         bind:viewportRef
         onkeydown={(e) => {
             switch (e.key) {
@@ -446,14 +457,17 @@
             }
         }}
     >
-        <div class="flex flex-col py-2 size-full">
+        <div class="flex flex-col pb-4 size-full">
             {#each shownSamples as sampleAsset, index (sampleAsset.uuid)}
                 {@const selected =
                     globalAudio.currentAsset?.uuid == sampleAsset.uuid}
                 <SampleListEntry
                     {sampleAsset}
                     {selected}
-                    playing={selected && !globalAudio.paused}
+                    playing={selected &&
+                        (dawSync.connected
+                            ? dawSync.playing && dawSync.playbackEnabled
+                            : !globalAudio.paused)}
                     collectionUuid={view.kind === "collection"
                         ? view.collection.uuid
                         : null}
@@ -466,13 +480,7 @@
                     }}
                 />
                 {#if index < shownSamples.length - 1}
-                    <div
-                        class={selected || index + 1 == selectedSampleIndex
-                            ? "px-2"
-                            : ""}
-                    >
-                        <Separator />
-                    </div>
+                    <div class="h-1"></div>
                 {/if}
             {:else}
                 <div

@@ -133,28 +133,27 @@ export function pitchShiftAudioBuffer(
 
     const BLOCK = 4096
     const interleaved = new Float32Array(BLOCK * 2)
-    const left: number[] = []
-    const right: number[] = []
-
-    let extracted: number
-    // SoundTouch always works in stereo internally; mono input is duplicated.
-    while ((extracted = filter.extract(interleaved, BLOCK)) > 0) {
-        for (let i = 0; i < extracted; i++) {
-            left.push(interleaved[i * 2])
-            right.push(interleaved[i * 2 + 1])
-        }
-    }
-
-    // Trim/pad to the original length so loops stay seamless and exports keep timing.
     const output = new AudioBuffer({
         length: originalLength,
         numberOfChannels: channelCount,
         sampleRate,
     })
-    const take = Math.min(left.length, originalLength)
-    output.copyToChannel(Float32Array.from(left.slice(0, take)), 0)
-    if (channelCount > 1) {
-        output.copyToChannel(Float32Array.from(right.slice(0, take)), 1)
+    const left = output.getChannelData(0)
+    const right = channelCount > 1 ? output.getChannelData(1) : null
+    let writeIndex = 0
+
+    let extracted: number
+    // SoundTouch always works in stereo internally; mono input is duplicated.
+    while (
+        writeIndex < originalLength &&
+        (extracted = filter.extract(interleaved, BLOCK)) > 0
+    ) {
+        const writable = Math.min(extracted, originalLength - writeIndex)
+        for (let i = 0; i < writable; i++) {
+            left[writeIndex + i] = interleaved[i * 2]
+            if (right) right[writeIndex + i] = interleaved[i * 2 + 1]
+        }
+        writeIndex += writable
     }
 
     return output
@@ -195,27 +194,26 @@ export function tempoStretchAudioBuffer(
 
     const BLOCK = 4096
     const interleaved = new Float32Array(BLOCK * 2)
-    const left: number[] = []
-    const right: number[] = []
-
-    let extracted: number
-    while ((extracted = filter.extract(interleaved, BLOCK)) > 0) {
-        for (let i = 0; i < extracted; i++) {
-            left.push(interleaved[i * 2])
-            right.push(interleaved[i * 2 + 1])
-        }
-        if (left.length >= targetLength + padFrames) break
-    }
-
     const output = new AudioBuffer({
         length: targetLength,
         numberOfChannels: channelCount,
         sampleRate,
     })
-    const take = Math.min(left.length, targetLength)
-    output.copyToChannel(Float32Array.from(left.slice(0, take)), 0)
-    if (channelCount > 1) {
-        output.copyToChannel(Float32Array.from(right.slice(0, take)), 1)
+    const left = output.getChannelData(0)
+    const right = channelCount > 1 ? output.getChannelData(1) : null
+    let writeIndex = 0
+
+    let extracted: number
+    while (
+        writeIndex < targetLength &&
+        (extracted = filter.extract(interleaved, BLOCK)) > 0
+    ) {
+        const writable = Math.min(extracted, targetLength - writeIndex)
+        for (let i = 0; i < writable; i++) {
+            left[writeIndex + i] = interleaved[i * 2]
+            if (right) right[writeIndex + i] = interleaved[i * 2 + 1]
+        }
+        writeIndex += writable
     }
 
     return output

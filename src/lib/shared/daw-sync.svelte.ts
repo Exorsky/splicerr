@@ -4,6 +4,7 @@ import type { SampleAsset } from "$lib/splice/types"
 import { globalAudio } from "$lib/shared/audio.svelte"
 import { saveDawStretchedSampleInfo } from "$lib/shared/files.svelte"
 import { semitonesFor } from "$lib/shared/transpose.svelte"
+import { cancelAudioRenderWorker } from "$lib/shared/audio-render-worker-client"
 
 const MIN_PLAYBACK_RATE = 0.25
 const MAX_PLAYBACK_RATE = 4
@@ -74,6 +75,12 @@ let lastOneShotBarIndex: number | null = null
 let loadedPluginSampleKey: string | null = null
 let loadingPluginSampleKey: string | null = null
 let sampleLoadGeneration = 0
+let retryPluginSampleAfterRender = false
+let sampleLoadAbortController: AbortController | null = null
+let scheduledPluginSampleKey: string | null = null
+let scheduledPluginSampleTimer: number | null = null
+let deferredTransposeReloadTimer: number | null = null
+let deferredTransposeAssetUuid: string | null = null
 let mutedAppForDaw = false
 let volumeBeforeDawMute = 0.8
 let bridgePlaybackEnabled = true
@@ -292,7 +299,23 @@ function stopVisualClock() {
     visualTimer = 0
 }
 
-async function syncPluginSample() {
+function clearScheduledPluginSample() {
+    if (scheduledPluginSampleTimer !== null) {
+        window.clearTimeout(scheduledPluginSampleTimer)
+        scheduledPluginSampleTimer = null
+    }
+    scheduledPluginSampleKey = null
+}
+
+function clearDeferredTransposeReload() {
+    if (deferredTransposeReloadTimer !== null) {
+        window.clearTimeout(deferredTransposeReloadTimer)
+        deferredTransposeReloadTimer = null
+    }
+    deferredTransposeAssetUuid = null
+}
+
+async function syncPluginSample(immediate = false) {
     const asset = globalAudio.currentAsset
     const dawBpm = dawSync.bpm
     const audioPort = dawSync.audioPort
@@ -300,9 +323,38 @@ async function syncPluginSample() {
     if (!asset || !dawSync.connected || !dawBpm || !audioPort) return
 
     const key = pluginSampleKey(asset, dawBpm)
+    if (
+        deferredTransposeAssetUuid !== null &&
+        deferredTransposeAssetUuid !== asset.uuid
+    ) {
+        clearDeferredTransposeReload()
+    }
     if (loadedPluginSampleKey === key || loadingPluginSampleKey === key) return
 
+    if (!immediate && loadingPluginSampleKey === null) {
+        if (scheduledPluginSampleKey === key) return
+        clearScheduledPluginSample()
+        scheduledPluginSampleKey = key
+        scheduledPluginSampleTimer = window.setTimeout(() => {
+            scheduledPluginSampleTimer = null
+            scheduledPluginSampleKey = null
+            void syncPluginSample(true)
+        }, 140)
+        return
+    }
+
+    if (loadingPluginSampleKey !== null) {
+        if (retryPluginSampleAfterRender) return
+        retryPluginSampleAfterRender = true
+        sampleLoadGeneration++
+        sampleLoadAbortController?.abort()
+        return
+    }
+
     const generation = ++sampleLoadGeneration
+    clearScheduledPluginSample()
+    const abortController = new AbortController()
+    sampleLoadAbortController = abortController
     loadingPluginSampleKey = key
     dawSync.loadedSampleDurationSeconds = 0
     dawSync.samplePositionSeconds = null
@@ -311,7 +363,17 @@ async function syncPluginSample() {
     dawSync.visualDuration = 0
 
     try {
-        const renderedSample = await saveDawStretchedSampleInfo(asset, dawBpm)
+        const shouldCancel = () =>
+            generation !== sampleLoadGeneration ||
+            abortController.signal.aborted ||
+            globalAudio.currentAsset?.uuid !== asset.uuid ||
+            !dawSync.connected ||
+            dawSync.audioPort !== audioPort
+
+        const renderedSample = await saveDawStretchedSampleInfo(asset, dawBpm, {
+            shouldCancel,
+            signal: abortController.signal,
+        })
         if (
             generation !== sampleLoadGeneration ||
             globalAudio.currentAsset?.uuid !== asset.uuid ||
@@ -333,11 +395,19 @@ async function syncPluginSample() {
         await sendBridgePlaybackEnabled(bridgePlaybackEnabled)
         loadedPluginSampleKey = key
     } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return
         dawSync.lastError = String(err)
         loadedPluginSampleKey = null
     } finally {
         if (loadingPluginSampleKey === key) {
             loadingPluginSampleKey = null
+        }
+        if (sampleLoadAbortController === abortController) {
+            sampleLoadAbortController = null
+        }
+        if (retryPluginSampleAfterRender) {
+            retryPluginSampleAfterRender = false
+            window.queueMicrotask(() => void syncPluginSample())
         }
     }
 }
@@ -361,7 +431,15 @@ export function toggleDawSyncedPlayback() {
         return
     }
 
-    bridgePlaybackEnabled = !bridgePlaybackEnabled
+    setDawSyncedPlaybackEnabled(!bridgePlaybackEnabled)
+}
+
+export function setDawSyncedPlaybackEnabled(enabled: boolean) {
+    if (!dawSync.connected) {
+        return
+    }
+
+    bridgePlaybackEnabled = enabled
     dawSync.playbackEnabled = bridgePlaybackEnabled
     void sendBridgePlaybackEnabled(bridgePlaybackEnabled)
 
@@ -378,6 +456,36 @@ export function toggleDawSyncedPlayback() {
             lastOneShotBarIndex = null
         }
     }
+}
+
+export function notifyDawTransposeChanged() {
+    if (!dawSync.connected || !globalAudio.currentAsset || !dawSync.bpm) return
+
+    const asset = globalAudio.currentAsset
+    const key = pluginSampleKey(asset, dawSync.bpm)
+
+    sampleLoadGeneration++
+    sampleLoadAbortController?.abort()
+    retryPluginSampleAfterRender = false
+    clearScheduledPluginSample()
+    clearDeferredTransposeReload()
+
+    // Avoid immediately re-rendering the currently playing bridge sample while
+    // the user is choosing a new key/sample. If they stay on this sample, render
+    // the new key after a short idle window; selecting another sample cancels it.
+    loadedPluginSampleKey = key
+    loadingPluginSampleKey = null
+    deferredTransposeAssetUuid = asset.uuid
+    deferredTransposeReloadTimer = window.setTimeout(() => {
+        if (
+            dawSync.connected &&
+            globalAudio.currentAsset?.uuid === asset.uuid
+        ) {
+            loadedPluginSampleKey = null
+            void syncPluginSample(true)
+        }
+        clearDeferredTransposeReload()
+    }, 1200)
 }
 
 function desiredMediaOffsetSeconds(compensateOutputLatency: boolean = true) {
@@ -609,7 +717,13 @@ function handlePacket(payload: unknown) {
 function resetPluginSampleState() {
     loadedPluginSampleKey = null
     loadingPluginSampleKey = null
+    retryPluginSampleAfterRender = false
+    clearScheduledPluginSample()
+    clearDeferredTransposeReload()
     sampleLoadGeneration++
+    sampleLoadAbortController?.abort()
+    sampleLoadAbortController = null
+    cancelAudioRenderWorker()
     dawSync.loadedSampleDurationSeconds = 0
     dawSync.samplePositionSeconds = null
     dawSync.sampleActive = null
