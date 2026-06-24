@@ -12,7 +12,7 @@ import { resetMode, setMode } from "mode-watcher"
 
 const CONFIG_FILE_NAME = "config.json"
 
-export type UITheme = "system" | "light" | "dark"
+export type UITheme = "system" | "light" | "dark" | "dre4moff"
 
 export type TransposeMode = "key" | "pitch"
 export type NoteSpelling = "flat" | "sharp"
@@ -89,6 +89,11 @@ export async function loadConfig() {
         console.log("📂 Config loaded")
     }
 
+    // Re-apply the saved theme so the dre4moff skin (a custom data-skin
+    // attribute mode-watcher doesn't track) is restored on startup, not just
+    // the light/dark mode.
+    updateTheme()
+
     await validateSamplesDir()
 }
 
@@ -111,9 +116,23 @@ export async function saveConfig() {
 }
 
 export function updateTheme() {
+    // The dre4moff skin is an opt-in dark variant: it rides on top of dark
+    // mode and is enabled via a data-skin attribute that app.css keys off. Plain
+    // Dark/Light/System clear the attribute so they render the original palette.
+    if (typeof document !== "undefined") {
+        if (config.ui_theme === "dre4moff") {
+            document.documentElement.setAttribute("data-skin", "dre4moff")
+        } else {
+            document.documentElement.removeAttribute("data-skin")
+        }
+    }
+
     switch (config.ui_theme) {
         case "system":
             resetMode()
+            break
+        case "dre4moff":
+            setMode("dark")
             break
         default:
             setMode(config.ui_theme)

@@ -4,38 +4,74 @@
 
 @layer base {
     :root {
-        --background: 210 10% 6%;
-        --foreground: 210 28% 96%;
-        --muted: 215 20% 18%;
-        --muted-foreground: 215 13% 70%;
-        --popover: 216 24% 9%;
-        --popover-foreground: 210 28% 96%;
-        --card: 216 24% 9%;
-        --card-foreground: 210 28% 96%;
-        --border: 210 24% 100%;
-        --input: 210 24% 100%;
-        --primary: 210 28% 96%;
-        --primary-foreground: 210 10% 6%;
-        --secondary: 214 22% 16%;
-        --secondary-foreground: 210 28% 96%;
-        --accent: 210 22% 18%;
-        --accent-foreground: 210 28% 96%;
+        --background: 0 0% 100%;
+        --foreground: 0 0% 3.9%;
+        --muted: 0 0% 96.1%;
+        --muted-foreground: 0 0% 45.1%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 3.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 3.9%;
+        --border: 0 0% 89.8%;
+        --input: 0 0% 89.8%;
+        --primary: 0 0% 9%;
+        --primary-foreground: 0 0% 98%;
+        --secondary: 0 0% 96.1%;
+        --secondary-foreground: 0 0% 9%;
+        --accent: 0 0% 96.1%;
+        --accent-foreground: 0 0% 9%;
         --destructive: 0 72.2% 50.6%;
         --destructive-foreground: 0 0% 98%;
         --warn: 12 72.8% 50.6%;
-        --ring: 210 28% 84%;
-        --radius: 0.75rem;
-        --sidebar-background: 210 12% 10%;
-        --sidebar-foreground: 210 28% 92%;
-        --sidebar-primary: 210 28% 96%;
-        --sidebar-primary-foreground: 210 10% 6%;
-        --sidebar-accent: 210 28% 100%;
-        --sidebar-accent-foreground: 210 28% 96%;
-        --sidebar-border: 210 24% 100%;
-        --sidebar-ring: 210 28% 84%;
+        --ring: 0 0% 3.9%;
+        --radius: 0.5rem;
+        --sidebar-background: 0 0% 98%;
+        --sidebar-foreground: 240 5.3% 26.1%;
+        --sidebar-primary: 240 5.9% 10%;
+        --sidebar-primary-foreground: 0 0% 98%;
+        --sidebar-accent: 240 4.8% 95.9%;
+        --sidebar-accent-foreground: 240 5.9% 10%;
+        --sidebar-border: 220 13% 91%;
+        --sidebar-ring: 217.2 91.2% 59.8%;
     }
 
     .dark {
+        --background: 0 0% 3.9%;
+        --foreground: 0 0% 98%;
+        --muted: 0 0% 14.9%;
+        --muted-foreground: 0 0% 63.9%;
+        --popover: 0 0% 3.9%;
+        --popover-foreground: 0 0% 98%;
+        --card: 0 0% 3.9%;
+        --card-foreground: 0 0% 98%;
+        --border: 0 0% 14.9%;
+        --input: 0 0% 14.9%;
+        --primary: 0 0% 98%;
+        --primary-foreground: 0 0% 9%;
+        --secondary: 0 0% 14.9%;
+        --secondary-foreground: 0 0% 98%;
+        --accent: 0 0% 14.9%;
+        --accent-foreground: 0 0% 98%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 0 0% 98%;
+        --warn: 12 72.8% 50.6%;
+        --ring: 0 0% 83.1%;
+        --sidebar-background: 240 5.9% 10%;
+        --sidebar-foreground: 240 4.8% 95.9%;
+        --sidebar-primary: 224.3 76.3% 48%;
+        --sidebar-primary-foreground: 0 0% 100%;
+        --sidebar-accent: 240 3.7% 15.9%;
+        --sidebar-accent-foreground: 240 4.8% 95.9%;
+        --sidebar-border: 240 3.7% 15.9%;
+        --sidebar-ring: 217.2 91.2% 59.8%;
+    }
+
+    /*
+     * dre4moff — opt-in dark "skin" toggled via data-skin on <html>
+     * (see updateTheme in config.svelte.ts). It always rides on top of dark
+     * mode, so the palette below overrides the plain .dark values.
+     */
+    .dark[data-skin="dre4moff"] {
         --background: 210 10% 6%;
         --foreground: 210 28% 96%;
         --muted: 215 20% 18%;
@@ -52,10 +88,8 @@
         --secondary-foreground: 210 28% 96%;
         --accent: 210 22% 18%;
         --accent-foreground: 210 28% 96%;
-        --destructive: 0 62.8% 30.6%;
-        --destructive-foreground: 0 0% 98%;
-        --warn: 12 72.8% 50.6%;
         --ring: 210 28% 84%;
+        --radius: 0.75rem;
         --sidebar-background: 210 12% 10%;
         --sidebar-foreground: 210 28% 92%;
         --sidebar-primary: 210 28% 96%;
@@ -73,6 +107,9 @@
     }
     body {
         @apply bg-background text-foreground overflow-hidden h-screen antialiased;
+    }
+    /* Ambient glow only under the dre4moff skin. */
+    :root[data-skin="dre4moff"] body {
         background:
             radial-gradient(circle at 10% 8%, rgba(52, 151, 141, 0.2), transparent 30rem),
             radial-gradient(circle at 88% 0%, rgba(194, 157, 84, 0.09), transparent 28rem),
@@ -96,12 +133,68 @@
     .macos-shell {
         height: 100%;
         min-height: 0;
+    }
+
+    /*
+     * The .glass-* / surface classes are used directly in component markup.
+     * Their default rules below are flat and palette-driven so Dark and Light
+     * look like ordinary controls; the dre4moff overrides further down add
+     * the translucent blur. This keeps a single set of markup for all themes.
+     */
+    .glass-panel {
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--border));
+        box-shadow:
+            0 1px 3px 0 rgb(0 0 0 / 0.1),
+            0 1px 2px -1px rgb(0 0 0 / 0.1);
+    }
+
+    .glass-control {
+        background: transparent;
+        border: 1px solid hsl(var(--input));
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    }
+
+    .glass-row {
+        background: transparent;
+        border: 1px solid transparent;
+        transition:
+            background-color 180ms ease,
+            border-color 180ms ease;
+    }
+
+    .glass-row:hover {
+        background: hsl(var(--accent));
+    }
+
+    .glass-row-selected {
+        background: hsl(var(--accent));
+    }
+
+    .glass-pill {
+        background: hsl(var(--secondary));
+        border: 1px solid hsl(var(--border));
+    }
+
+    .glass-pill-active {
+        background: hsl(var(--accent));
+        color: hsl(var(--accent-foreground));
+    }
+
+    /* No surface box in Dark/Light (matches the original look); dre4moff
+       adds the translucent panel below. */
+    .waveform-surface {
+        background: transparent;
+    }
+
+    /* ---- dre4moff skin overrides ---- */
+    :root[data-skin="dre4moff"] .macos-shell {
         background:
             linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 18rem),
             transparent;
     }
 
-    .glass-panel {
+    :root[data-skin="dre4moff"] .glass-panel {
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.035));
         border: 1px solid rgba(255, 255, 255, 0.12);
         box-shadow:
@@ -110,7 +203,7 @@
         backdrop-filter: blur(18px) saturate(135%);
     }
 
-    .glass-control {
+    :root[data-skin="dre4moff"] .glass-control {
         background: rgba(255, 255, 255, 0.075);
         border: 1px solid rgba(255, 255, 255, 0.11);
         box-shadow:
@@ -119,38 +212,34 @@
         backdrop-filter: blur(14px) saturate(130%);
     }
 
-    .glass-row {
+    :root[data-skin="dre4moff"] .glass-row {
         background: rgba(255, 255, 255, 0.035);
-        border: 1px solid transparent;
-        transition:
-            background-color 180ms ease,
-            border-color 180ms ease;
     }
 
-    .glass-row:hover {
+    :root[data-skin="dre4moff"] .glass-row:hover {
         background: rgba(255, 255, 255, 0.065);
         border-color: rgba(255, 255, 255, 0.1);
     }
 
-    .glass-row-selected {
+    :root[data-skin="dre4moff"] .glass-row-selected {
         background: rgba(255, 255, 255, 0.1);
         border-color: rgba(255, 255, 255, 0.14);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
 
-    .glass-pill {
+    :root[data-skin="dre4moff"] .glass-pill {
         background: rgba(255, 255, 255, 0.055);
         border: 1px solid rgba(255, 255, 255, 0.09);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
     }
 
-    .glass-pill-active {
+    :root[data-skin="dre4moff"] .glass-pill-active {
         background: rgba(255, 255, 255, 0.16);
         border-color: rgba(255, 255, 255, 0.18);
         color: hsl(var(--foreground));
     }
 
-    .waveform-surface {
+    :root[data-skin="dre4moff"] .waveform-surface {
         background:
             linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025)),
             rgba(0, 0, 0, 0.08);

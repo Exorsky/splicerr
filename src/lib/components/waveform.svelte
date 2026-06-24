@@ -138,11 +138,11 @@
                 <linearGradient id={key} x1="0" y1="0" x2="1" y2="0">
                     <stop
                         offset={`${progress * 100 || 0}%`}
-                        stop-color="rgba(255,255,255,0.96)"
+                        stop-color="hsl(var(--primary))"
                     />
                     <stop
                         offset={`${progress * 100 || 0}%`}
-                        stop-color="rgba(255,255,255,0.36)"
+                        stop-color="hsl(var(--muted-foreground))"
                     />
                 </linearGradient>
             </defs>
