@@ -59,12 +59,28 @@
     // The samples shown in the main list: search results in browse mode,
     // the collection's stored samples (optionally tag-filtered) in collection mode.
     const shownSamples = $derived.by(() => {
-        if (view.kind !== "collection") return dataStore.sampleAssets
+        // Splice pagination can return the same sample on more than one page.
+        // The results list is keyed by uuid, and a duplicate key throws in
+        // Svelte 5 (each_key_duplicate), which breaks rendering of that part of
+        // the list — rows and waveforms vanish. Dedupe by uuid so keys are
+        // always unique.
+        const dedupeByUuid = <T extends { uuid: string }>(samples: T[]) => {
+            const seen = new Set<string>()
+            return samples.filter((sample) => {
+                if (seen.has(sample.uuid)) return false
+                seen.add(sample.uuid)
+                return true
+            })
+        }
+        if (view.kind !== "collection")
+            return dedupeByUuid(dataStore.sampleAssets)
         const samples = collectionSamples(view.collection.uuid)
-        if (viewStore.tagFilter.length == 0) return samples
-        return samples.filter((sample) =>
-            viewStore.tagFilter.every((tagUuid) =>
-                sample.tags.some((tag) => tag.uuid == tagUuid)
+        if (viewStore.tagFilter.length == 0) return dedupeByUuid(samples)
+        return dedupeByUuid(
+            samples.filter((sample) =>
+                viewStore.tagFilter.every((tagUuid) =>
+                    sample.tags.some((tag) => tag.uuid == tagUuid)
+                )
             )
         )
     })

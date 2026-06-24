@@ -51,10 +51,10 @@
         )}
         onmousedown={(e) => {
             e.preventDefault()
-            inputRef.focus()
+            inputRef?.focus()
         }}
         tabindex={-1}
-        onclick={() => inputRef.focus()}
+        onclick={() => inputRef?.focus()}
     >
         <Search class="mr-2 size-5 shrink-0 text-muted-foreground" />
         <input
