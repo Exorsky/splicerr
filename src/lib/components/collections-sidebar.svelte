@@ -96,16 +96,33 @@
 </script>
 
 <aside
-    class="flex flex-col w-56 flex-shrink-0 border-r border-border h-full p-3 gap-3"
+    class="flex flex-col w-60 flex-shrink-0 h-full p-4 gap-4 border-r border-white/10 bg-white/[0.025]"
 >
-    <div class="flex flex-col gap-0.5">
-        <span class="px-2 text-xs font-medium text-muted-foreground">
+    <div class="flex items-center gap-3 px-2 py-1.5">
+        <div
+            class="flex size-9 items-center justify-center rounded-xl bg-white/[0.12] text-sm font-semibold shadow-inner"
+        >
+            S
+        </div>
+        <div class="min-w-0">
+            <div class="truncate text-[15px] font-semibold leading-tight">
+                Splicerr
+            </div>
+            <div class="truncate text-xs text-muted-foreground">
+                Sample library
+            </div>
+        </div>
+    </div>
+
+    <div class="flex flex-col gap-1">
+        <span class="px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Library
         </span>
         <button
             class={cn(
-                "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left w-full hover:bg-muted",
-                viewStore.mode === "browse" && "bg-muted font-medium"
+                "flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-left w-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground",
+                viewStore.mode === "browse" &&
+                    "bg-white/[0.12] text-foreground shadow-inner"
             )}
             onclick={openBrowse}
         >
@@ -114,9 +131,9 @@
         </button>
     </div>
 
-    <div class="flex flex-col gap-0.5 flex-grow min-h-0">
+    <div class="flex flex-col gap-1 flex-grow min-h-0">
         <div class="flex items-center justify-between pl-2">
-            <span class="text-xs font-medium text-muted-foreground">
+            <span class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                 Collections
             </span>
             <Button
@@ -131,15 +148,15 @@
         </div>
 
         <ScrollArea class="flex-grow -mx-1">
-            <div class="flex flex-col gap-0.5 px-1">
+            <div class="flex flex-col gap-1 px-1">
                 {#if likesCollection()}
                     {@const likesActive =
                         viewStore.mode === "collection" &&
                         viewStore.collectionUuid === LIKES_UUID}
                     <div
                         class={cn(
-                            "flex items-center gap-2 rounded-md pl-2 pr-1 py-1.5 text-sm hover:bg-muted",
-                            likesActive && "bg-muted font-medium"
+                            "flex items-center gap-2 rounded-xl pl-3 pr-1.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground",
+                            likesActive && "bg-white/[0.12] text-foreground shadow-inner"
                         )}
                     >
                         <button
@@ -166,8 +183,8 @@
                     viewStore.collectionUuid === collection.uuid}
                 <div
                     class={cn(
-                        "group flex items-center gap-2 rounded-md pl-2 pr-1 py-1.5 text-sm hover:bg-muted",
-                        active && "bg-muted font-medium"
+                        "group flex items-center gap-2 rounded-xl pl-3 pr-1.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground",
+                        active && "bg-white/[0.12] text-foreground shadow-inner"
                     )}
                 >
                     <button
@@ -189,7 +206,7 @@
                     </button>
                     <Popover.Root>
                         <Popover.Trigger
-                            class="opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 text-muted-foreground flex-shrink-0 rounded p-0.5 hover:text-foreground"
+                            class="opacity-0 group-hover:opacity-100 data-[state=open]:opacity-100 text-muted-foreground flex-shrink-0 rounded-lg p-1 hover:bg-white/10 hover:text-foreground"
                         >
                             <Ellipsis size="16" />
                         </Popover.Trigger>
@@ -229,9 +246,9 @@
         </ScrollArea>
     </div>
 
-    <div class="border-t border-border pt-2 -mx-1 px-1">
+    <div class="border-t border-white/10 pt-3 -mx-1 px-1">
         <button
-            class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left w-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            class="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-left w-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
             onclick={() => (settingsDialog.open = true)}
         >
             <Settings size="16" class="flex-shrink-0" />

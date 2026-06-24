@@ -1,17 +1,31 @@
 import type { SampleAsset } from "$lib/splice/types"
 import { join, sep } from "@tauri-apps/api/path"
 import { exists, create, mkdir } from "@tauri-apps/plugin-fs"
-import { getDescrambledSampleURL } from "./store.svelte"
+import {
+    getDescrambledSampleBytes,
+    getDescrambledSampleURL,
+} from "./store.svelte"
 import { config, isSamplesDirValid } from "$lib/shared/config.svelte"
 import {
-    pitchShiftAudioBuffer,
     semitonesFor,
     transposeSuffix,
 } from "$lib/shared/transpose.svelte"
-import { encode } from "node-wav"
-import { Buffer } from "buffer"
+import {
+    decodeAudioFromArrayBuffer,
+    decodeAudioFromURL,
+} from "$lib/shared/wav"
+import { renderAudioBufferToWav } from "$lib/shared/audio-render-worker-client"
 
-globalThis.Buffer = Buffer // node-wav needs Buffer which is not defined when using Vite
+export type DawStretchedSample = {
+    path: string
+    durationSeconds: number
+}
+
+type EncodeOptions = {
+    shouldCancel?: () => boolean
+    releaseSourceAfterRender?: boolean
+    signal?: AbortSignal
+}
 
 const sanitizePath = (path: string) => path.replace(/[^a-zA-Z0-9#_\-\.\/]/g, "_")
 
@@ -42,6 +56,28 @@ async function ensureFileDirectoryExists(filePath: string) {
     }
 }
 
+function nextFrame() {
+    return new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => resolve())
+    })
+}
+
+async function writeFileChunked(filePath: string, data: Uint8Array) {
+    await ensureFileDirectoryExists(filePath)
+
+    const file = await create(filePath)
+    const chunkSize = 1024 * 1024
+
+    try {
+        for (let offset = 0; offset < data.byteLength; offset += chunkSize) {
+            await file.write(data.subarray(offset, offset + chunkSize))
+            await nextFrame()
+        }
+    } finally {
+        await file.close()
+    }
+}
+
 export async function absoluteSamplePath(sampleAsset: SampleAsset, suffix = "") {
     if (!config.samples_dir) {
         throw new Error("❌ Samples Directory not set")
@@ -54,6 +90,77 @@ export async function absoluteSamplePath(sampleAsset: SampleAsset, suffix = "") 
     return await join(config.samples_dir, sampleAssetPath(sampleAsset, suffix))
 }
 
+function estimatedRenderedDurationSeconds(
+    sampleAsset: SampleAsset,
+    tempoRatio: number
+) {
+    const metadataSeconds = sampleAsset.duration / 1000
+    if (!Number.isFinite(metadataSeconds) || metadataSeconds <= 0) return 0
+    if (!Number.isFinite(tempoRatio) || tempoRatio <= 0) return metadataSeconds
+    return metadataSeconds / tempoRatio
+}
+
+async function encodeSampleWavWithDuration(
+    sampleAsset: SampleAsset,
+    semitones = semitonesFor(sampleAsset),
+    tempoRatio = 1,
+    trimToMetadataDuration = true,
+    options: EncodeOptions = {}
+): Promise<{ wavData: Uint8Array; durationSeconds: number }> {
+    const throwIfCancelled = () => {
+        if (options.shouldCancel?.() || options.signal?.aborted) {
+            throw new DOMException("Sample render cancelled", "AbortError")
+        }
+    }
+
+    throwIfCancelled()
+    const decoded = options.releaseSourceAfterRender
+        ? await (async () => {
+              const bytes = await getDescrambledSampleBytes(
+                  sampleAsset,
+                  options.signal
+              )
+              const arrayBuffer = bytes.buffer.slice(
+                  bytes.byteOffset,
+                  bytes.byteOffset + bytes.byteLength
+              )
+              return await decodeAudioFromArrayBuffer(arrayBuffer, {
+                  isolatedContext: true,
+                  signal: options.signal,
+              })
+          })()
+        : await decodeAudioFromURL(await getDescrambledSampleURL(sampleAsset), {
+              signal: options.signal,
+          })
+
+    throwIfCancelled()
+    const metadataDuration = (sampleAsset.duration / 1000) / tempoRatio
+    const rendered = await renderAudioBufferToWav(decoded, {
+        semitones,
+        tempoRatio,
+        trimStartSeconds: config.cut_mp3_delay ? 0.012 : 0,
+        maxDurationSeconds: trimToMetadataDuration ? metadataDuration : null,
+        signal: options.signal,
+    })
+    throwIfCancelled()
+
+    console.info(
+        "🎚️ Encoded sample duration",
+        {
+            name: sampleAsset.name,
+            metadataSeconds: sampleAsset.duration / 1000,
+            decodedSeconds: decoded.duration,
+            renderedSeconds: rendered.durationSeconds,
+            trimToMetadataDuration,
+        }
+    )
+
+    return {
+        wavData: rendered.wavData,
+        durationSeconds: rendered.durationSeconds,
+    }
+}
+
 /**
  * Descrambles a sample and returns its decoded, trimmed WAV bytes (16-bit),
  * pitch-shifted by `semitones` (defaults to the current transpose setting).
@@ -61,42 +168,20 @@ export async function absoluteSamplePath(sampleAsset: SampleAsset, suffix = "") 
  */
 export async function encodeSampleWav(
     sampleAsset: SampleAsset,
-    semitones = semitonesFor(sampleAsset)
+    semitones = semitonesFor(sampleAsset),
+    tempoRatio = 1,
+    trimToMetadataDuration = true,
+    options: EncodeOptions = {}
 ): Promise<Uint8Array> {
-    const blobURL = await getDescrambledSampleURL(sampleAsset)
-
-    const response = await fetch(blobURL)
-
-    const blob = await response.blob()
-
-    const buffer = await blob.arrayBuffer()
-
-    const decoded = await new AudioContext().decodeAudioData(buffer)
-    // Apply tempo-preserving pitch shift before trimming/encoding (no-op when 0)
-    const samples = pitchShiftAudioBuffer(decoded, semitones)
-    const channels: Float32Array[] = []
-
-    for (let i = 0; i < samples.numberOfChannels; i++) {
-        const channel = samples.getChannelData(i)
-
-        // Calculate 12ms in samples based on the actual sample rate
-        const trimSamples = config.cut_mp3_delay ? Math.floor(samples.sampleRate * 0.012) : 0
-
-        const start = trimSamples
-        const end = (sampleAsset.duration / 1000) * samples.sampleRate + start
-
-        // Make sure we don't try to slice beyond the available data
-        const safeEnd = Math.min(end, channel.length)
-
-        channels.push(channel.subarray(start, safeEnd))
-    }
-
-    const wavData = encode(channels as any, {
-        bitDepth: 16,
-        sampleRate: samples.sampleRate,
-    })
-
-    return new Uint8Array(wavData)
+    return (
+        await encodeSampleWavWithDuration(
+            sampleAsset,
+            semitones,
+            tempoRatio,
+            trimToMetadataDuration,
+            options
+        )
+    ).wavData
 }
 
 export async function saveSample(sampleAsset: SampleAsset) {
@@ -119,15 +204,75 @@ export async function saveSample(sampleAsset: SampleAsset) {
 
     console.log("🏆 Sample converted! Saving at", absolutePath)
 
-    await ensureFileDirectoryExists(absolutePath)
-
-    const file = await create(absolutePath)
-    await file.write(wavData)
-    await file.close()
+    await writeFileChunked(absolutePath, wavData)
 
     console.log("🎉 Success!")
 
     return absolutePath
+}
+
+export async function saveDawStretchedSampleInfo(
+    sampleAsset: SampleAsset,
+    dawBpm: number,
+    options: EncodeOptions = {}
+): Promise<DawStretchedSample> {
+    const semitones = semitonesFor(sampleAsset)
+    const sourceBpm = sampleAsset.bpm
+    const oneShot = sampleAsset.duration <= 3000
+    const tempoRatio =
+        !oneShot && sourceBpm && sourceBpm > 0 && dawBpm > 0
+            ? dawBpm / sourceBpm
+            : 1
+    const suffix = `${transposeSuffix(semitones)}_daw_full_${Math.round(dawBpm)}bpm`
+    const absolutePath = await absoluteSamplePath(sampleAsset, suffix)
+
+    if (!absolutePath) {
+        throw new Error("❌ Invalid path")
+    }
+
+    if (await exists(absolutePath)) {
+        console.log("🗃️ DAW-stretched sample already exists at", absolutePath)
+        if (options.shouldCancel?.()) {
+            throw new DOMException("Sample render cancelled", "AbortError")
+        }
+        return {
+            path: absolutePath,
+            durationSeconds: estimatedRenderedDurationSeconds(
+                sampleAsset,
+                tempoRatio
+            ),
+        }
+    }
+
+    const { wavData, durationSeconds } = await encodeSampleWavWithDuration(
+        sampleAsset,
+        semitones,
+        tempoRatio,
+        false,
+        {
+            ...options,
+            releaseSourceAfterRender: true,
+        }
+    )
+
+    if (options.shouldCancel?.()) {
+        throw new DOMException("Sample render cancelled", "AbortError")
+    }
+
+    console.log("🏆 DAW-stretched sample converted! Saving at", absolutePath)
+
+    await writeFileChunked(absolutePath, wavData)
+
+    console.log("🎉 DAW-stretched sample saved!")
+
+    return { path: absolutePath, durationSeconds }
+}
+
+export async function saveDawStretchedSample(
+    sampleAsset: SampleAsset,
+    dawBpm: number
+) {
+    return (await saveDawStretchedSampleInfo(sampleAsset, dawBpm)).path
 }
 
 export async function absolutePackImagePath(sampleAsset: SampleAsset) {
@@ -184,4 +329,3 @@ export async function savePackImage(sampleAsset: SampleAsset) {
         throw e
     }
 }
-

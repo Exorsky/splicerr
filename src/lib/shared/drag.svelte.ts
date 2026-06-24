@@ -1,7 +1,7 @@
 import { startDrag } from "@crabnebula/tauri-plugin-drag"
 import { join, appCacheDir } from "@tauri-apps/api/path"
 import { exists, create, mkdir, readFile } from "@tauri-apps/plugin-fs"
-import { saveSample, savePackImage } from "./files.svelte"
+import { saveDawStretchedSample, saveSample, savePackImage } from "./files.svelte"
 import { semitonesFor } from "./transpose.svelte"
 import { loading } from "./loading.svelte"
 import type { SampleAsset, PackAsset } from "$lib/splice/types"
@@ -103,6 +103,17 @@ const dragCache = new Map<string, DragData>()
 const inFlight = new Map<string, Promise<DragData | null>>()
 
 const cacheKey = (s: SampleAsset) => `${s.uuid}:${semitonesFor(s)}`
+const dawCacheKey = (s: SampleAsset, bpm: number) =>
+    `${cacheKey(s)}:daw-full:${Math.round(bpm)}`
+
+async function dragIconForSample(sampleAsset: SampleAsset) {
+    const pack = sampleAsset.parents.items[0] as PackAsset
+    const packImagePath = await savePackImage(sampleAsset)
+    if (packImagePath && (await exists(packImagePath))) {
+        return await createDragIcon(packImagePath, pack.uuid)
+    }
+    return await createInvisibleIcon()
+}
 
 /**
  * Prepares a sample for dragging: descrambles + writes the WAV and builds the
@@ -122,21 +133,45 @@ export function prefetchSampleDrag(sampleAsset: SampleAsset): Promise<DragData |
         loading.samplesCount++
         try {
             const path = await saveSample(sampleAsset)
-
-            const pack = sampleAsset.parents.items[0] as PackAsset
-            let iconPath: string
-            const packImagePath = await savePackImage(sampleAsset)
-            if (packImagePath && (await exists(packImagePath))) {
-                iconPath = await createDragIcon(packImagePath, pack.uuid)
-            } else {
-                iconPath = await createInvisibleIcon()
-            }
+            const iconPath = await dragIconForSample(sampleAsset)
 
             const data = { path, iconPath }
             dragCache.set(key, data)
             return data
         } catch (e) {
             console.error("⚠️ Failed preparing sample for drag", e)
+            return null
+        } finally {
+            loading.samples.delete(sampleAsset.uuid)
+            loading.samplesCount--
+            inFlight.delete(key)
+        }
+    })()
+    inFlight.set(key, p)
+    return p
+}
+
+export function prefetchDawSampleDrag(
+    sampleAsset: SampleAsset,
+    dawBpm: number
+): Promise<DragData | null> {
+    const key = dawCacheKey(sampleAsset, dawBpm)
+    const cached = dragCache.get(key)
+    if (cached) return Promise.resolve(cached)
+    const existing = inFlight.get(key)
+    if (existing) return existing
+
+    const p = (async () => {
+        loading.samples.add(sampleAsset.uuid)
+        loading.samplesCount++
+        try {
+            const path = await saveDawStretchedSample(sampleAsset, dawBpm)
+            const iconPath = await dragIconForSample(sampleAsset)
+            const data = { path, iconPath }
+            dragCache.set(key, data)
+            return data
+        } catch (e) {
+            console.error("⚠️ Failed preparing DAW-stretched sample for drag", e)
             return null
         } finally {
             loading.samples.delete(sampleAsset.uuid)
@@ -163,5 +198,24 @@ export function handleSampleDrag(event: DragEvent, sampleAsset: SampleAsset) {
     } else {
         console.log("🫳 Preparing", sampleAsset.name, "— drag again once ready")
         prefetchSampleDrag(sampleAsset)
+    }
+}
+
+export function handleDawSampleDrag(
+    event: DragEvent,
+    sampleAsset: SampleAsset,
+    dawBpm: number
+) {
+    event.preventDefault()
+    const data = dragCache.get(dawCacheKey(sampleAsset, dawBpm))
+    if (data) {
+        startDrag({ item: [data.path], icon: data.iconPath })
+    } else {
+        console.log(
+            "🫳 Preparing DAW-stretched sample",
+            sampleAsset.name,
+            "— drag again once ready"
+        )
+        prefetchDawSampleDrag(sampleAsset, dawBpm)
     }
 }

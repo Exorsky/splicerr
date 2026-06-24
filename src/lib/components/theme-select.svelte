@@ -19,6 +19,10 @@
             value: "light",
             label: "I am a clinically insane.",
         },
+        {
+            value: "dre4moff",
+            label: "dre4moff",
+        },
     ]
 
     const triggerContent = $derived(

@@ -72,7 +72,7 @@
 </script>
 
 <Select.Root type="single" bind:value={sort} onValueChange={() => onselect()}>
-    <Select.Trigger class="w-[180px]">
+    <Select.Trigger class="w-[190px]">
         <div class="flex items-center">
             {triggerLabel}
             {#if showOrder}

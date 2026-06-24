@@ -1,11 +1,12 @@
 {
   "name": "splicerr",
-  "version": "1.0.13",
+  "version": "1.15.0",
   "description": "",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "test:render-stress": "node --expose-gc scripts/stress-transpose-render.mjs",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",

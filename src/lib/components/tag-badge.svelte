@@ -27,10 +27,11 @@
         <Tooltip.Trigger class="focus:outline-none" tabindex={-1}>
             <Button
                 class={cn(
-                    "px-2 min-w-14 h-6 justify-center shrink-0",
+                    "glass-pill px-3 min-w-14 h-8 rounded-full justify-center shrink-0 text-xs font-medium",
                     !active && "text-muted-foreground",
+                    active && "glass-pill-active",
                     variant == "ghost" &&
-                        "text-muted-foreground hover:bg-secondary/80 border-transparent hover:text-accent-foreground",
+                        "text-muted-foreground hover:bg-white/10 border-transparent hover:text-accent-foreground",
                     className
                 )}
                 variant={active

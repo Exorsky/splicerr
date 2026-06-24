@@ -43,24 +43,24 @@
     }
 </script>
 
-<div class={cn("w-[180px] flex-grow flex-shrink-0", className)}>
+<div class={cn("w-[240px] flex-grow flex-shrink-0", className)}>
     <button
         class={cn(
-            "flex items-center border-input border px-3 rounded-md w-full cursor-text gap-2 ring-offset-background focus-within:ring-ring focus:ring-ring h-9 justify-between whitespace-nowrap bg-transparent py-2 text-sm shadow-sm focus-within:outline-none focus:outline-none focus-within:ring-1 focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50",
+            "glass-control flex items-center px-5 rounded-full w-full cursor-text gap-2 focus-within:ring-ring focus:ring-ring h-12 justify-between whitespace-nowrap py-2 text-sm focus-within:outline-none focus:outline-none focus-within:ring-1 focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50",
             className
         )}
         onmousedown={(e) => {
             e.preventDefault()
-            inputRef.focus()
+            inputRef?.focus()
         }}
         tabindex={-1}
-        onclick={() => inputRef.focus()}
+        onclick={() => inputRef?.focus()}
     >
-        <Search class="mr-2 size-4 shrink-0 opacity-50" />
+        <Search class="mr-2 size-5 shrink-0 text-muted-foreground" />
         <input
             bind:value
             bind:this={inputRef}
-            placeholder="Search samples..."
+            placeholder="Search samples, packs, genres..."
             onfocus={() => (open = true)}
             onblur={() => (open = false)}
             onkeydown={(event) => {
@@ -114,7 +114,7 @@
                     }
                 )
             }}
-            class="select-all placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 outline-none disabled:cursor-not-allowed disabled:opacity-50 text-sm"
+            class="select-all placeholder:text-muted-foreground/80 flex h-10 w-full rounded-md bg-transparent py-3 outline-none disabled:cursor-not-allowed disabled:opacity-50 text-[15px]"
         />
     </button>
     <div class="relative w-full">
@@ -122,7 +122,7 @@
             <!-- TODO: Use a popover instead -->
             <Card
                 class={cn(
-                    "flex-col rounded-md p-1 min-w-48",
+                    "flex-col rounded-2xl p-1 min-w-56",
                     open && suggestions.length > 0 ? "flex" : "hidden"
                 )}
             >
