@@ -5,9 +5,10 @@ restores functionality and adds DAW bridge sync.
 
 ## New
 
-- **Refreshed UI** — macOS-style dark "Liquid Glass" interface: updated sidebar,
-  search, filters, result rows, waveform surface, and floating player, with larger
-  and more prominent waveforms.
+- **New "dre4moff" theme** — an optional macOS-style dark glass interface (updated
+  sidebar, search, filters, result rows, waveform surface, floating player). It's
+  opt-in: the classic **Dark** and **Light** themes are the defaults and look as they
+  always did. Pick it under Settings → Theme.
 - **Splicerr Bridge plugin** for DAW sync — AU + VST3 on macOS, VST3 on Windows.
 - **Bridge installer in Settings** with Install/Reinstall/Uninstall actions.
   Installs into the system plug-in folders so any DAW finds it; this asks for
@@ -35,6 +36,8 @@ restores functionality and adds DAW bridge sync.
 - Bridge audio renders directly inside the DAW plugin; waveform and player progress
   follow the plugin's real sample cursor.
 - One-shot waveform progress resets between bar triggers.
+- Waveforms/rows no longer drop out while scrolling results (duplicate samples
+  returned by Splice pagination are de-duplicated).
 - (macOS) Closing the window hides it and reopening brings it back.
 
 ## Build & transparency
@@ -45,7 +48,7 @@ restores functionality and adds DAW bridge sync.
 
 ## Credits
 
-- The UI refresh and DAW-mode stability work in this release come from
+- The dre4moff theme and DAW-mode stability work in this release come from
   [@dre4moff](https://github.com/dre4moff)'s pull request — thank you!
 - All credit to the original authors — please ⭐ the original
   [splicedd](https://github.com/ascpixi/splicedd) and
