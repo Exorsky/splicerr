@@ -90,12 +90,15 @@ jobs:
           tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'Splicerr v__VERSION__'
           releaseBody: |
-            ## Splicerr v1.15.0 — DAW Bridge
+            ## Splicerr v1.15.0 — DAW Bridge + UI refresh
 
             Temporary fork of [Robert-K/splicerr](https://github.com/Robert-K/splicerr)
             that restores functionality and adds DAW bridge sync.
 
             ### New
+            - **Refreshed UI** — macOS-style dark "Liquid Glass" interface: updated
+              sidebar, search, filters, result rows, waveform surface, and floating
+              player, with larger and more prominent waveforms.
             - **Splicerr Bridge plugin** for DAW sync — AU + VST3 on macOS, VST3 on Windows.
             - **Bridge installer in Settings** with Install/Reinstall/Uninstall actions.
               Installs into the system plug-in folders so any DAW finds it; this asks
@@ -106,12 +109,27 @@ jobs:
             - DAW-mode drag-and-drop for the currently selected sample stretched to the host BPM.
 
             ### Fixes
+            - DAW bridge audio rendering now runs in a **Web Worker**, so long
+              pitch-shifted samples no longer freeze the UI.
+            - Pitch shift and tempo stretch run in one combined SoundTouch pass; renders
+              are abortable and cancel stale jobs when you switch samples quickly.
+            - Lower memory pressure while browsing — capped preview blobs, chunked WAV
+              writes, isolated AudioContexts closed after each render, and cached renders
+              no longer read full WAVs back into the WebView.
+            - Cold audio/waveform downloads prefer a direct WebView fetch (with Tauri HTTP
+              fallback), avoiding large transfers through IPC before rendering.
+            - DAW-mode play buttons start on the first click; selecting a sample re-enables
+              bridge playback; changing transpose re-renders the synced sample instead of
+              the muted local preview.
             - The app preview is muted automatically while connected to the DAW.
-            - Bridge audio now renders directly inside the DAW plugin.
-            - Waveform and player progress now follow the plugin's real sample cursor.
-            - One-shot waveform progress now resets between bar triggers instead of looking permanently active.
-            - Closing the macOS window now hides it and reopening Splicerr brings the main window back.
-            - Bridge installer labels are now in English.
+            - Bridge audio renders directly inside the DAW plugin; waveform and player
+              progress follow the plugin's real sample cursor.
+            - One-shot waveform progress resets between bar triggers.
+            - (macOS) Closing the window hides it and reopening brings it back.
+
+            ### 🙏 Credits
+            - The UI refresh and DAW-mode stability work in this release come from
+              [@dre4moff](https://github.com/dre4moff)'s pull request — thank you!
 
             ### Included from previous releases
             - **Collections** — create local collections, Likes, tag filtering, export
