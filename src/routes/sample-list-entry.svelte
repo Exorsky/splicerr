@@ -46,6 +46,7 @@
         playing,
         sampleAsset,
         collectionUuid = null,
+        onopenpack,
         onremove,
     }: {
         class?: string
@@ -54,6 +55,7 @@
         sampleAsset: SampleAsset
         // When set, this row is rendered inside a collection view.
         collectionUuid?: string | null
+        onopenpack?: (pack: SampleAsset["parents"]["items"][number]) => void
         onremove?: () => void
     } = $props()
 
@@ -122,7 +124,7 @@
     }}
     ondragstart={(event) => handleSampleDrag(event, sampleAsset)}
 >
-    <PackPreview {pack} size={11} />
+    <PackPreview {pack} size={11} {onopenpack} />
     <Button
         variant="ghost"
         bind:ref={playButtonRef}

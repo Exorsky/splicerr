@@ -58,6 +58,8 @@ export const queryStore = $state({
     random_seed: randomSeed(),
     order: "DESC" as SortOrder,
     page: 1,
+    parent_asset_uuid: null as string | null,
+    parent_asset_name: null as string | null,
     asset_category_slug: null as AssetCategorySlug | null,
     bpm: null as string | null,
     min_bpm: null as number | null,
@@ -73,6 +75,7 @@ const queryIdentity = $derived({
     sort: queryStore.sort,
     order: queryStore.order,
     random_seed: queryStore.random_seed,
+    parent_asset_uuid: queryStore.parent_asset_uuid,
     tags: dataStore.tags,
     asset_category_slug: queryStore.asset_category_slug,
     bpm: queryStore.bpm?.toString(),
@@ -88,6 +91,43 @@ export const storeCallbacks = $state({
 })
 
 let currentQueryIdentity: string = ""
+
+export function openPackSamples(pack: { uuid?: string; name?: string } | null) {
+    const packName = pack?.name?.split("/").slice(-1)[0] ?? null
+    queryStore.page = 1
+    queryStore.query = pack?.uuid ? "" : packName?.split(/\s+/)[0] ?? ""
+    queryStore.parent_asset_uuid = pack?.uuid ?? null
+    queryStore.parent_asset_name = packName
+    queryStore.sort = pack?.uuid ? "name" : DEFAULT_SORT
+    queryStore.order = "ASC"
+    queryStore.random_seed = randomSeed()
+    dataStore.tags = []
+    queryStore.asset_category_slug = null
+    queryStore.bpm = null
+    queryStore.min_bpm = null
+    queryStore.max_bpm = null
+    queryStore.key = null
+    queryStore.chord_type = null
+    fetchAssets()
+}
+
+export function closePackSamples() {
+    queryStore.page = 1
+    queryStore.parent_asset_uuid = null
+    queryStore.parent_asset_name = null
+    queryStore.query = ""
+    queryStore.sort = DEFAULT_SORT
+    queryStore.order = "DESC"
+    queryStore.random_seed = randomSeed()
+    dataStore.tags = []
+    queryStore.asset_category_slug = null
+    queryStore.bpm = null
+    queryStore.min_bpm = null
+    queryStore.max_bpm = null
+    queryStore.key = null
+    queryStore.chord_type = null
+    fetchAssets()
+}
 
 async function fetchBinaryResponse(url: string, signal?: AbortSignal) {
     try {
@@ -138,6 +178,7 @@ export const fetchAssets = () => {
     loading.assets = true
     querySplice(SamplesSearch, {
         ...queryIdentity,
+        parent_asset_type: queryStore.parent_asset_uuid ? "pack" : null,
         page: queryStore.page,
         limit: PER_PAGE,
     })

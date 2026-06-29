@@ -499,6 +499,38 @@ fn bridge_install_path() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
+fn bridge_install_paths() -> Result<Vec<String>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        return Ok(vec![
+            Path::new(SYSTEM_COMPONENTS_DIR)
+                .join("Splicerr Bridge.component")
+                .to_string_lossy()
+                .into_owned(),
+            Path::new(SYSTEM_VST3_DIR)
+                .join("Splicerr Bridge.vst3")
+                .to_string_lossy()
+                .into_owned(),
+        ]);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        return Ok(vec![
+            windows_vst3_dir()?
+                .join(BRIDGE_VST3_BUNDLE)
+                .to_string_lossy()
+                .into_owned(),
+        ]);
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        Ok(Vec::new())
+    }
+}
+
+#[tauri::command]
 fn install_bridge_plugins(app: tauri::AppHandle) -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
@@ -675,6 +707,7 @@ pub fn run() {
             daw_set_playback_enabled,
             bridge_plugins_installed,
             bridge_install_path,
+            bridge_install_paths,
             install_bridge_plugins,
             uninstall_bridge_plugins,
             open_devtools
