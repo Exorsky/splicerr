@@ -29,6 +29,8 @@
         fetchAssets,
         DEFAULT_SORT,
         randomSeed,
+        openPackSamples,
+        closePackSamples,
     } from "$lib/shared/store.svelte"
     import KeySelect from "$lib/components/key-select.svelte"
     import CollectionsSidebar from "$lib/components/collections-sidebar.svelte"
@@ -39,6 +41,7 @@
         removeSample,
     } from "$lib/shared/collections.svelte"
     import { dawSync } from "$lib/shared/daw-sync.svelte"
+    import type { PackAsset } from "$lib/splice/types"
 
     // Single source of truth for the active view. The header, list, empty state
     // and row actions all key off this one derived, so they can never disagree
@@ -180,6 +183,13 @@
         fetchAssets()
     }
 
+    const openPack = (pack: PackAsset) => {
+        viewStore.mode = "browse"
+        viewStore.collectionUuid = null
+        viewStore.tagFilter = []
+        openPackSamples(pack)
+    }
+
     const selectOrPlaySample = (sampleAsset: (typeof shownSamples)[number]) => {
         if (dawSync.connected) {
             globalAudio.selectSampleAsset(sampleAsset, false)
@@ -280,6 +290,24 @@
                 </h2>
             {/if}
         </div>
+
+        {#if view.kind === "browse" && queryStore.parent_asset_name}
+            <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                <span class="truncate">
+                    Pack: <span class="font-medium text-foreground"
+                        >{queryStore.parent_asset_name}</span
+                    >
+                </span>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    class="h-7 px-2"
+                    onclick={closePackSamples}
+                >
+                    Clear
+                </Button>
+            </div>
+        {/if}
 
         {#if view.kind === "browse"}
         <div
@@ -487,6 +515,7 @@
                     collectionUuid={view.kind === "collection"
                         ? view.collection.uuid
                         : null}
+                    onopenpack={openPack}
                     onremove={() => {
                         if (view.kind === "collection")
                             removeSample(
@@ -542,5 +571,5 @@
     </ScrollArea>
         </main>
     </div>
-    <AudioPlayer onprev={gotoPrev} onnext={gotoNext} />
+    <AudioPlayer onprev={gotoPrev} onnext={gotoNext} onopenpack={openPack} />
 </div>

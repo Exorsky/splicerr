@@ -7,6 +7,7 @@
     import SkipBack from "lucide-svelte/icons/skip-back"
     import { globalAudio } from "$lib/shared/audio.svelte"
     import type { MouseEventHandler } from "svelte/elements"
+    import type { PackAsset } from "$lib/splice/types"
     import LoaderCircle from "lucide-svelte/icons/loader-circle"
     import { loading } from "$lib/shared/loading.svelte"
     import PackPreview from "$lib/components/pack-preview.svelte"
@@ -34,6 +35,7 @@
         class: className,
         onnext,
         onprev,
+        onopenpack,
         ...restProps
     }: {
         class?: string
@@ -41,6 +43,7 @@
             MouseEventHandler<HTMLAnchorElement>
         onprev: MouseEventHandler<HTMLButtonElement> &
             MouseEventHandler<HTMLAnchorElement>
+        onopenpack?: (pack: PackAsset) => void
     } = $props()
 
     const currentPack = $derived(globalAudio.currentAsset?.parents.items[0])
@@ -148,7 +151,7 @@
         </div>
         {#if globalAudio.currentAsset}
             <div class="flex gap-4 items-center shrink min-w-64">
-                <PackPreview side="top" pack={currentPack} />
+                <PackPreview side="top" pack={currentPack} {onopenpack} />
                 <div class="text-muted-foreground">
                     {#if globalAudio.currentAsset.asset_category_slug in assetIcons}
                         {@const Icon =

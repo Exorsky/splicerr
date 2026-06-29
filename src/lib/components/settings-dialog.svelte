@@ -31,12 +31,12 @@
     let uninstallingBridge = $state(false)
     let bridgeInstalled = $state<boolean | null>(null)
     let bridgeInstallStatus = $state<string | null>(null)
-    let bridgeInstallPath = $state<string | null>(null)
+    let bridgeInstallPaths = $state<string[]>([])
 
     async function refreshBridgeInstallState() {
         try {
             bridgeInstalled = await invoke<boolean>("bridge_plugins_installed")
-            bridgeInstallPath = await invoke<string | null>("bridge_install_path")
+            bridgeInstallPaths = await invoke<string[]>("bridge_install_paths")
         } catch (err) {
             bridgeInstallStatus = String(err)
         }
@@ -252,15 +252,19 @@
                         {bridgeInstallStatus}
                     </p>
                 {/if}
-                {#if bridgeInstalled && bridgeInstallPath}
-                    <button
-                        type="button"
-                        class="text-primary text-sm text-left break-all underline-offset-4 hover:underline focus:outline-none"
-                        title="Reveal in file manager"
-                        onclick={() => revealItemInDir(bridgeInstallPath!)}
-                    >
-                        {bridgeInstallPath}
-                    </button>
+                {#if bridgeInstalled && bridgeInstallPaths.length > 0}
+                    <div class="flex flex-col gap-1">
+                        {#each bridgeInstallPaths as bridgeInstallPath}
+                            <button
+                                type="button"
+                                class="text-primary text-sm text-left break-all underline-offset-4 hover:underline focus:outline-none"
+                                title="Reveal in file manager"
+                                onclick={() => revealItemInDir(bridgeInstallPath)}
+                            >
+                                {bridgeInstallPath}
+                            </button>
+                        {/each}
+                    </div>
                 {/if}
             </div>
             <div class="flex flex-col gap-2">

@@ -1,6 +1,6 @@
 [package]
 name = "splicerr"
-version = "1.15.0"
+version = "1.15.1"
 description = "Yet another Splice frontend, inspired by ascpixi"
 authors = ["kosro"]
 edition = "2021"

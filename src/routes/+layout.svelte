@@ -22,6 +22,21 @@
     })
 
     onMount(() => {
+        const preventFileNavigation = (event: DragEvent) => {
+            const types = Array.from(event.dataTransfer?.types ?? [])
+            if (
+                types.includes("Files") ||
+                types.includes("text/uri-list") ||
+                types.includes("public.file-url")
+            ) {
+                event.preventDefault()
+                event.stopPropagation()
+            }
+        }
+
+        window.addEventListener("dragover", preventFileNavigation, true)
+        window.addEventListener("drop", preventFileNavigation, true)
+
         loadConfig().then(() => {
             if (!isSamplesDirValid()) {
                 settingsDialog.open = true
@@ -29,7 +44,11 @@
         })
         loadCollections()
         startDawSync()
-        return () => stopDawSync()
+        return () => {
+            window.removeEventListener("dragover", preventFileNavigation, true)
+            window.removeEventListener("drop", preventFileNavigation, true)
+            stopDawSync()
+        }
     })
 </script>
 
